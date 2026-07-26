@@ -2,7 +2,7 @@
 
 [resource]
 resource_name = "toon_grass"
-albedo_color = Color(0.42, 0.62, 0.34, 1)
+albedo_color = Color(0.35, 0.53, 0.29, 1)
 roughness = 0.95
 metallic_specular = 0.06
 diffuse_mode = 3

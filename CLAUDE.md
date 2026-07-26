@@ -101,9 +101,17 @@ that. No backend, no multiplayer, no database, no auth — ever.
 Hand-authored `.tscn` and shader code is easy to get subtly wrong. Every visual
 or behavioural change gets checked by actually running the engine:
 
-- **Behaviour** — a throwaway `SceneTree` script driven with `Input.action_press`,
-  run **headless**. Headless is mandatory: a windowed run captures the real mouse
+- **Behaviour** — a throwaway test driven with `Input.action_press`, run
+  **headless**. Headless is mandatory: a windowed run captures the real mouse
   and silently rotates the camera mid-test.
+- **Anything touching an autoload must run as a SCENE**
+  (`godot --headless --path . res://_test.tscn`), not via `--script`. Autoloads
+  are *not* instantiated when a bare script is the main loop, so `GameState`
+  resolves to null and the test spins forever.
+- **Screenshots are for judging feel, not for identifying geometry.** Twice now
+  a "fix had no visible effect" turned out to be me misreading which object a
+  region of the image was. If a change should have moved pixels and didn't,
+  stop editing and go query the scene tree for real positions and sizes.
 - **Looks** — run windowed, `root.get_texture().get_image().save_png(...)`, then
   actually look at the PNG.
 - Measure before theorising. Several bugs this project hit (SpringArm pitch sign,

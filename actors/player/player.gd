@@ -54,8 +54,11 @@ extends CharacterBody3D
 @onready var spring_arm: SpringArm3D = $CameraPivot/SpringArm3D
 @onready var anim_tree: AnimationTree = $AnimationTree
 @onready var anim_player: AnimationPlayer = $Rig/Character/AnimationPlayer
+@onready var interact_field: Area3D = $InteractField
 
 var _state_machine: AnimationNodeStateMachinePlayback
+var _focus: Interactable = null
+var _hud: Node = null
 
 var _base_gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
 var _coyote_timer: float = 0.0
@@ -82,6 +85,7 @@ func _ready() -> void:
 	_state_machine = anim_tree["parameters/playback"]
 
 	Toonify.apply($Rig/Character)
+	_hud = get_tree().get_first_node_in_group("hud")
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -188,6 +192,44 @@ func _update_camera(delta: float) -> void:
 	camera_pivot.global_position = camera_pivot.global_position.lerp(
 		target, 1.0 - exp(-camera_follow_speed * delta)
 	)
+
+
+func _process(_delta: float) -> void:
+	_update_focus()
+	if _focus != null and Input.is_action_just_pressed("interact"):
+		_focus.interact(self)
+
+
+## Pick what the player would interact with: nearest thing they're facing.
+## Proximity + facing rather than a camera raycast, because there's no
+## crosshair in a third-person adventure.
+func _update_focus() -> void:
+	var best: Interactable = null
+	var best_score := -INF
+	# The model's forward is +Z at yaw 0, so the rig's facing is +basis.z.
+	var facing := rig.global_basis.z
+	facing.y = 0.0
+	facing = facing.normalized()
+
+	for area in interact_field.get_overlapping_areas():
+		var target := area as Interactable
+		if target == null or not target.can_interact():
+			continue
+		var to := target.global_position - global_position
+		to.y = 0.0
+		var dist := to.length()
+		var aim := 1.0 if dist < 0.01 else facing.dot(to / dist)
+		if aim < -0.25:
+			continue  # behind us
+		var score := aim - dist * 0.18
+		if score > best_score:
+			best_score = score
+			best = target
+
+	if best != _focus:
+		_focus = best
+		if _hud and _hud.has_method("set_prompt"):
+			_hud.set_prompt(_focus)
 
 
 func _update_animation(on_floor: bool) -> void:
