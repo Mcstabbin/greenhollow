@@ -22,6 +22,7 @@ func _process(_delta: float) -> void:
 		"speed        %.2f / %.2f m/s" % [speed, _player.max_speed],
 		"vertical     %+.2f m/s" % _player.velocity.y,
 		"grounded     %s" % grounded,
+		"anim         %s" % _player.get_anim_state(),
 		"",
 		"WASD move  |  Space jump  |  Mouse look",
 		"Esc releases the mouse",

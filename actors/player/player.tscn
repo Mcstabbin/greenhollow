@@ -1,30 +1,51 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=14 format=3]
 
 [ext_resource type="Script" path="res://actors/player/player.gd" id="1_player"]
-[ext_resource type="Material" path="res://art/materials/toon_tunic.tres" id="2_tunic"]
-[ext_resource type="Material" path="res://art/materials/toon_gold.tres" id="3_gold"]
-[ext_resource type="Material" path="res://art/materials/toon_shadow_blob.tres" id="4_blob"]
-[ext_resource type="Material" path="res://art/materials/outline_post.tres" id="5_outline"]
+[ext_resource type="PackedScene" path="res://art/models/character.glb" id="2_character"]
+[ext_resource type="Material" path="res://art/materials/toon_shadow_blob.tres" id="3_blob"]
+[ext_resource type="Material" path="res://art/materials/outline_post.tres" id="4_outline"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.4
 height = 1.8
 
-[sub_resource type="CapsuleMesh" id="CapsuleMesh_body"]
-radius = 0.4
-height = 1.8
-
-[sub_resource type="BoxMesh" id="BoxMesh_snout"]
-size = Vector3(0.22, 0.22, 0.42)
-
 [sub_resource type="SphereMesh" id="SphereMesh_shadow"]
-radius = 0.42
+radius = 0.45
 height = 0.04
 radial_segments = 16
 rings = 2
 
 [sub_resource type="QuadMesh" id="QuadMesh_fullscreen"]
 size = Vector2(2, 2)
+
+[sub_resource type="AnimationNodeAnimation" id="anim_idle"]
+animation = &"idle"
+
+[sub_resource type="AnimationNodeAnimation" id="anim_walk"]
+animation = &"walk"
+
+[sub_resource type="AnimationNodeAnimation" id="anim_jump"]
+animation = &"jump"
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="trans_loco"]
+xfade_time = 0.12
+switch_mode = 0
+advance_mode = 1
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="trans_jump"]
+xfade_time = 0.08
+switch_mode = 0
+advance_mode = 1
+
+[sub_resource type="AnimationNodeStateMachine" id="StateMachine_loco"]
+states/idle/node = SubResource("anim_idle")
+states/idle/position = Vector2(340, 100)
+states/jump/node = SubResource("anim_jump")
+states/jump/position = Vector2(480, 220)
+states/walk/node = SubResource("anim_walk")
+states/walk/position = Vector2(620, 100)
+transitions = ["Start", "idle", SubResource("trans_loco"), "idle", "walk", SubResource("trans_loco"), "walk", "idle", SubResource("trans_loco"), "idle", "jump", SubResource("trans_jump"), "walk", "jump", SubResource("trans_jump"), "jump", "idle", SubResource("trans_jump"), "jump", "walk", SubResource("trans_jump")]
+graph_offset = Vector2(180, 20)
 
 [node name="Player" type="CharacterBody3D" groups=["player"]]
 collision_layer = 2
@@ -37,21 +58,19 @@ shape = SubResource("CapsuleShape3D_body")
 
 [node name="Rig" type="Node3D" parent="."]
 
-[node name="Body" type="MeshInstance3D" parent="Rig"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
-mesh = SubResource("CapsuleMesh_body")
-surface_material_override/0 = ExtResource("2_tunic")
-
-[node name="Snout" type="MeshInstance3D" parent="Rig"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.15, 0.34)
-mesh = SubResource("BoxMesh_snout")
-surface_material_override/0 = ExtResource("3_gold")
+[node name="Character" parent="Rig" instance=ExtResource("2_character")]
+transform = Transform3D(2, 0, 0, 0, 2, 0, 0, 0, 2, 0, 0, 0)
 
 [node name="GroundMarker" type="MeshInstance3D" parent="Rig"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.03, 0)
 cast_shadow = 0
 mesh = SubResource("SphereMesh_shadow")
-surface_material_override/0 = ExtResource("4_blob")
+surface_material_override/0 = ExtResource("3_blob")
+
+[node name="AnimationTree" type="AnimationTree" parent="."]
+tree_root = SubResource("StateMachine_loco")
+anim_player = NodePath("../Rig/Character/AnimationPlayer")
+active = true
 
 [node name="CameraPivot" type="Node3D" parent="."]
 
@@ -69,4 +88,4 @@ fov = 70.0
 extra_cull_margin = 16384.0
 cast_shadow = 0
 mesh = SubResource("QuadMesh_fullscreen")
-surface_material_override/0 = ExtResource("5_outline")
+surface_material_override/0 = ExtResource("4_outline")

@@ -45,9 +45,17 @@ extends CharacterBody3D
 ## Height above the player's origin the camera pivots around.
 @export var camera_target_height: float = 1.1
 
+@export_group("Animation")
+## Horizontal speed above which the character switches from idle to walk.
+@export var walk_anim_threshold: float = 0.4
+
 @onready var rig: Node3D = $Rig
 @onready var camera_pivot: Node3D = $CameraPivot
 @onready var spring_arm: SpringArm3D = $CameraPivot/SpringArm3D
+@onready var anim_tree: AnimationTree = $AnimationTree
+@onready var anim_player: AnimationPlayer = $Rig/Character/AnimationPlayer
+
+var _state_machine: AnimationNodeStateMachinePlayback
 
 var _base_gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
 var _coyote_timer: float = 0.0
@@ -60,6 +68,28 @@ func _ready() -> void:
 	camera_pivot.top_level = true
 	camera_pivot.global_position = global_position + Vector3.UP * camera_target_height
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+	# The model faces +Z at yaw 0, which is straight at the camera. Start it
+	# facing away instead, the way a third-person character should.
+	rig.rotation.y = PI
+
+	# The glTF import brings every clip in as non-looping, so idle and walk
+	# would play once and freeze. Force them to loop.
+	for clip in ["idle", "walk"]:
+		if anim_player.has_animation(clip):
+			anim_player.get_animation(clip).loop_mode = Animation.LOOP_LINEAR
+
+	_state_machine = anim_tree["parameters/playback"]
+
+	# Kenney's model imports with standard shading. Switch its materials to toon
+	# so the character reads the same way as the rest of the world.
+	for node in $Rig/Character.find_children("*", "MeshInstance3D", true, false):
+		var mesh: Mesh = (node as MeshInstance3D).mesh
+		for surface in mesh.get_surface_count():
+			var mat := mesh.surface_get_material(surface) as StandardMaterial3D
+			if mat != null:
+				mat.diffuse_mode = BaseMaterial3D.DIFFUSE_TOON
+				mat.specular_mode = BaseMaterial3D.SPECULAR_TOON
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -116,6 +146,7 @@ func _physics_process(delta: float) -> void:
 	_apply_movement(delta, on_floor)
 	move_and_slide()
 	_face_movement_direction(delta)
+	_update_animation(on_floor)
 
 
 func _apply_movement(delta: float, on_floor: bool) -> void:
@@ -167,6 +198,21 @@ func _update_camera(delta: float) -> void:
 	)
 
 
+func _update_animation(on_floor: bool) -> void:
+	if _state_machine == null:
+		return
+	var wanted := "jump"
+	if on_floor:
+		wanted = "walk" if get_horizontal_speed() > walk_anim_threshold else "idle"
+	if _state_machine.get_current_node() != wanted:
+		_state_machine.travel(wanted)
+
+
 ## Current horizontal speed, for the debug readout.
 func get_horizontal_speed() -> float:
 	return Vector3(velocity.x, 0.0, velocity.z).length()
+
+
+## Name of the animation state currently playing, for the debug readout.
+func get_anim_state() -> String:
+	return String(_state_machine.get_current_node()) if _state_machine else "-"
