@@ -1,0 +1,9 @@
+[gd_resource type="StandardMaterial3D" format=3]
+
+[resource]
+resource_name = "toon_tunic"
+albedo_color = Color(0.16, 0.6, 0.4, 1)
+roughness = 0.85
+metallic_specular = 0.12
+diffuse_mode = 3
+specular_mode = 1

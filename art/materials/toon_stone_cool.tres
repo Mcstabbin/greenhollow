@@ -1,0 +1,9 @@
+[gd_resource type="StandardMaterial3D" format=3]
+
+[resource]
+resource_name = "toon_stone_cool"
+albedo_color = Color(0.55, 0.56, 0.62, 1)
+roughness = 0.95
+metallic_specular = 0.06
+diffuse_mode = 3
+specular_mode = 1

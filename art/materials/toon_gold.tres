@@ -1,0 +1,9 @@
+[gd_resource type="StandardMaterial3D" format=3]
+
+[resource]
+resource_name = "toon_gold"
+albedo_color = Color(0.98, 0.8, 0.24, 1)
+roughness = 0.7
+metallic_specular = 0.25
+diffuse_mode = 3
+specular_mode = 1

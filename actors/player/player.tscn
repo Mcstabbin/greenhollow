@@ -1,6 +1,10 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://actors/player/player.gd" id="1_player"]
+[ext_resource type="Material" path="res://art/materials/toon_tunic.tres" id="2_tunic"]
+[ext_resource type="Material" path="res://art/materials/toon_gold.tres" id="3_gold"]
+[ext_resource type="Material" path="res://art/materials/toon_shadow_blob.tres" id="4_blob"]
+[ext_resource type="Material" path="res://art/materials/outline_post.tres" id="5_outline"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.4
@@ -10,22 +14,17 @@ height = 1.8
 radius = 0.4
 height = 1.8
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_body"]
-albedo_color = Color(0.259, 0.522, 0.957, 1)
-roughness = 0.7
-
 [sub_resource type="BoxMesh" id="BoxMesh_snout"]
 size = Vector3(0.22, 0.22, 0.42)
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_snout"]
-albedo_color = Color(0.98, 0.78, 0.18, 1)
-roughness = 0.6
 
 [sub_resource type="SphereMesh" id="SphereMesh_shadow"]
 radius = 0.42
 height = 0.04
 radial_segments = 16
 rings = 2
+
+[sub_resource type="QuadMesh" id="QuadMesh_fullscreen"]
+size = Vector2(2, 2)
 
 [node name="Player" type="CharacterBody3D" groups=["player"]]
 collision_layer = 2
@@ -41,21 +40,23 @@ shape = SubResource("CapsuleShape3D_body")
 [node name="Body" type="MeshInstance3D" parent="Rig"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
 mesh = SubResource("CapsuleMesh_body")
-surface_material_override/0 = SubResource("StandardMaterial3D_body")
+surface_material_override/0 = ExtResource("2_tunic")
 
 [node name="Snout" type="MeshInstance3D" parent="Rig"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.15, 0.34)
 mesh = SubResource("BoxMesh_snout")
-surface_material_override/0 = SubResource("StandardMaterial3D_snout")
+surface_material_override/0 = ExtResource("3_gold")
 
 [node name="GroundMarker" type="MeshInstance3D" parent="Rig"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.02, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.03, 0)
+cast_shadow = 0
 mesh = SubResource("SphereMesh_shadow")
+surface_material_override/0 = ExtResource("4_blob")
 
 [node name="CameraPivot" type="Node3D" parent="."]
 
 [node name="SpringArm3D" type="SpringArm3D" parent="CameraPivot"]
-transform = Transform3D(1, 0, 0, 0, 0.966, 0.259, 0, -0.259, 0.966, 0, 0, 0)
+transform = Transform3D(1, 0, 0, 0, 0.94, 0.342, 0, -0.342, 0.94, 0, 0, 0)
 collision_mask = 1
 spring_length = 5.5
 margin = 0.35
@@ -63,3 +64,9 @@ margin = 0.35
 [node name="Camera3D" type="Camera3D" parent="CameraPivot/SpringArm3D"]
 current = true
 fov = 70.0
+
+[node name="OutlinePost" type="MeshInstance3D" parent="CameraPivot/SpringArm3D/Camera3D"]
+extra_cull_margin = 16384.0
+cast_shadow = 0
+mesh = SubResource("QuadMesh_fullscreen")
+surface_material_override/0 = ExtResource("5_outline")

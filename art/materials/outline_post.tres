@@ -1,0 +1,11 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3]
+
+[ext_resource type="Shader" path="res://art/shaders/outline_post.gdshader" id="1_outline"]
+
+[resource]
+render_priority = 100
+shader = ExtResource("1_outline")
+shader_parameter/outline_color = Color(0.05, 0.05, 0.09, 1)
+shader_parameter/thickness = 1.3
+shader_parameter/depth_sensitivity = 16.0
+shader_parameter/normal_sensitivity = 1.0
