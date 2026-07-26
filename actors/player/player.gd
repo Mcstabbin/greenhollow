@@ -81,15 +81,7 @@ func _ready() -> void:
 
 	_state_machine = anim_tree["parameters/playback"]
 
-	# Kenney's model imports with standard shading. Switch its materials to toon
-	# so the character reads the same way as the rest of the world.
-	for node in $Rig/Character.find_children("*", "MeshInstance3D", true, false):
-		var mesh: Mesh = (node as MeshInstance3D).mesh
-		for surface in mesh.get_surface_count():
-			var mat := mesh.surface_get_material(surface) as StandardMaterial3D
-			if mat != null:
-				mat.diffuse_mode = BaseMaterial3D.DIFFUSE_TOON
-				mat.specular_mode = BaseMaterial3D.SPECULAR_TOON
+	Toonify.apply($Rig/Character)
 
 
 func _unhandled_input(event: InputEvent) -> void:

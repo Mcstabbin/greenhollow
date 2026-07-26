@@ -7,7 +7,7 @@ config_version=5
 
 config/name="Ocarina"
 config/description="3D action-adventure. M0: movement feel."
-run/main_scene="res://world/rooms/room_grey_box.tscn"
+run/main_scene="res://world/rooms/kokiri_forest.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 
 [display]
