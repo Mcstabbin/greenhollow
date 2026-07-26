@@ -62,16 +62,16 @@ components/        Interactable base
 items/             rupee, chest, sign, gate
 art/               models, shared toon materials, outline shader
 world/rooms/       level scenes
-tools/             build_kokiri.gd — generates the level scene
+tools/             build_clearing.gd — generates the level scene
 ui/                HUD and debug overlay
 ```
 
 ### About the level generator
 
-`tools/build_kokiri.gd` emits `world/rooms/kokiri_forest.tscn`:
+`tools/build_clearing.gd` emits `world/rooms/greenhollow_clearing.tscn`:
 
 ```bash
-godot --headless --path . --script res://tools/build_kokiri.gd
+godot --headless --path . --script res://tools/build_clearing.gd
 ```
 
 The output is a **real, hand-editable scene** — open it and move things around.

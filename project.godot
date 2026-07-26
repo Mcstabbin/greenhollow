@@ -1,13 +1,13 @@
-; Engine configuration file.
-; Ocarina - M0: a grey box you enjoy walking in.
+﻿; Engine configuration file.
+; Greenhollow - 3D action-adventure.
 
 config_version=5
 
 [application]
 
-config/name="Ocarina"
-config/description="3D action-adventure. M0: movement feel."
-run/main_scene="res://world/rooms/kokiri_forest.tscn"
+config/name="Greenhollow"
+config/description="A 3D Zelda-like action-adventure built in Godot 4."
+run/main_scene="res://world/rooms/greenhollow_clearing.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 
 [autoload]

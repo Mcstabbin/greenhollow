@@ -1,7 +1,7 @@
 extends SceneTree
-## Generates world/rooms/kokiri_forest.tscn.
+## Generates world/rooms/greenhollow_clearing.tscn.
 ##
-## Run:  godot --headless --path . --script res://tools/build_kokiri.gd
+## Run:  godot --headless --path . --script res://tools/build_clearing.gd
 ##
 ## This emits a REAL, hand-editable scene file. Re-running overwrites it, so once
 ## you start moving things by hand in the editor, either stop running this or
@@ -14,7 +14,7 @@ extends SceneTree
 ##  - One flat colour across 300 trees looks synthetic; tint per instance.
 ##  - Flat ground is the single biggest killer of a "place". Add mounds.
 
-const OUT_PATH := "res://world/rooms/kokiri_forest.tscn"
+const OUT_PATH := "res://world/rooms/greenhollow_clearing.tscn"
 const NATURE := "res://art/models/nature/%s.glb"
 const SEED := 20260725
 
@@ -52,8 +52,8 @@ var _terrain: Node3D          # yawed; children use terrain-local coords
 func _initialize() -> void:
 	_rng.seed = SEED
 	_root = Node3D.new()
-	_root.name = "KokiriForest"
-	_root.set_script(load("res://world/rooms/kokiri_forest.gd"))
+	_root.name = "clearingForest"
+	_root.set_script(load("res://world/rooms/greenhollow_clearing.gd"))
 
 	build_environment()
 	build_ground()
@@ -532,7 +532,7 @@ func build_village(world: Node) -> void:
 	world.add_child(g)
 	_own(g)
 
-	# Kokiri houses are hollow stumps in the source material, so oversized
+	# clearing houses are hollow stumps in the source material, so oversized
 	# stump models read right.
 	# Scaled up hard: at scale 8 a stump is 2.9 m wide but only 1.7 m tall,
 	# which is shorter than the player. These need to read as buildings.
@@ -994,7 +994,7 @@ func build_gameplay(world: Node) -> void:
 	_chest(g, Vector3(4.8, 1.5, -19.5), 2.3, false, 20, "shrine_rupees")
 
 	_sign_post(g, Vector3(2.6, 0, 13.5), -0.35,
-		"Kokiri Village\nThe Great Deku Tree sleeps beyond the stream.", "village")
+		"clearing Village\nThe Great Deku Tree sleeps beyond the stream.", "village")
 	_sign_post(g, Vector3(2.2, 0, 17.6), 0.25,
 		"The forest gate is locked.\nSomeone left a key up on the rocks.", "gate")
 	_sign_post(g, Vector3(-9.0, 3.9, 12.6), 2.2,
