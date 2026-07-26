@@ -1,0 +1,65 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://actors/player/player.gd" id="1_player"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
+radius = 0.4
+height = 1.8
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_body"]
+radius = 0.4
+height = 1.8
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_body"]
+albedo_color = Color(0.259, 0.522, 0.957, 1)
+roughness = 0.7
+
+[sub_resource type="BoxMesh" id="BoxMesh_snout"]
+size = Vector3(0.22, 0.22, 0.42)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_snout"]
+albedo_color = Color(0.98, 0.78, 0.18, 1)
+roughness = 0.6
+
+[sub_resource type="SphereMesh" id="SphereMesh_shadow"]
+radius = 0.42
+height = 0.04
+radial_segments = 16
+rings = 2
+
+[node name="Player" type="CharacterBody3D" groups=["player"]]
+collision_layer = 2
+collision_mask = 1
+script = ExtResource("1_player")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+shape = SubResource("CapsuleShape3D_body")
+
+[node name="Rig" type="Node3D" parent="."]
+
+[node name="Body" type="MeshInstance3D" parent="Rig"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+mesh = SubResource("CapsuleMesh_body")
+surface_material_override/0 = SubResource("StandardMaterial3D_body")
+
+[node name="Snout" type="MeshInstance3D" parent="Rig"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.15, 0.34)
+mesh = SubResource("BoxMesh_snout")
+surface_material_override/0 = SubResource("StandardMaterial3D_snout")
+
+[node name="GroundMarker" type="MeshInstance3D" parent="Rig"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.02, 0)
+mesh = SubResource("SphereMesh_shadow")
+
+[node name="CameraPivot" type="Node3D" parent="."]
+
+[node name="SpringArm3D" type="SpringArm3D" parent="CameraPivot"]
+transform = Transform3D(1, 0, 0, 0, 0.966, 0.259, 0, -0.259, 0.966, 0, 0, 0)
+collision_mask = 1
+spring_length = 5.5
+margin = 0.35
+
+[node name="Camera3D" type="Camera3D" parent="CameraPivot/SpringArm3D"]
+current = true
+fov = 70.0
