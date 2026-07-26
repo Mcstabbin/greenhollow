@@ -30,6 +30,10 @@ the smallest thing that turns a space into a level.
 buffering, variable jump height and asymmetric gravity. Every value that
 affects feel is an `@export`, tunable live from the remote inspector.
 
+**Sound and motion.** Footsteps that scale with pace, jump and landing, pickups,
+chests and the gate. The walk cycle is time-scaled by actual speed so the feet
+don't skate, foliage sways in the wind, and the stream ripples and drifts.
+
 **Art direction** is flat-colour toon with a screen-space outline pass
 (Roberts-cross edge detection over the depth and normal buffers). Screen-space
 rather than inverted-hull, because hulls tear open at the corners of box
@@ -51,7 +55,8 @@ Or open `project.godot` in the editor and press F5.
 | Mouse / right stick | Camera |
 | Space | Jump |
 | E | Interact |
-| Esc | Release mouse |
+| Esc | Pause |
+| F3 | Debug overlay |
 
 ## Layout
 
