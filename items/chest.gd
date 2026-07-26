@@ -50,6 +50,7 @@ func _ready() -> void:
 	_lid.add_child(lid_mesh)
 
 	var shape := CollisionShape3D.new()
+	shape.name = "Shape"
 	var box := BoxShape3D.new()
 	box.size = Vector3(2.6, 2.0, 2.2)
 	shape.shape = box
@@ -60,6 +61,7 @@ func _ready() -> void:
 	var body := StaticBody3D.new()
 	body.name = "Body"
 	var bshape := CollisionShape3D.new()
+	bshape.name = "Shape"
 	var bbox := BoxShape3D.new()
 	bbox.size = Vector3(1.5, 0.9, 1.0)
 	bshape.shape = bbox
@@ -80,6 +82,7 @@ func _on_interact(_by: Node3D) -> void:
 	if chest_id != "":
 		GameState.mark_opened(chest_id)
 
+	Audio.play("break", -6.0)
 	var tween := create_tween()
 	tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tween.tween_property(_lid, "rotation:x", -1.9, 0.45)

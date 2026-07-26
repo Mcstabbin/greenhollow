@@ -52,7 +52,7 @@ var _terrain: Node3D          # yawed; children use terrain-local coords
 func _initialize() -> void:
 	_rng.seed = SEED
 	_root = Node3D.new()
-	_root.name = "clearingForest"
+	_root.name = "GreenhollowClearing"
 	_root.set_script(load("res://world/rooms/greenhollow_clearing.gd"))
 
 	build_environment()
@@ -61,7 +61,7 @@ func _initialize() -> void:
 
 	var world := Node3D.new()
 	world.name = "World"
-	_root.add_child(world)
+	_root.add_child(world, true)
 	world.owner = _root
 
 	build_mounds(world)
@@ -143,19 +143,36 @@ func _meshes_of(model: String) -> Array:
 	return out
 
 
-## Shared material per (source, colour) pair. Duplicating per instance would
-## write thousands of near-identical materials into the scene file.
-func _mat_for(src: StandardMaterial3D, colour: Color) -> StandardMaterial3D:
-	var key := "%s|%s" % [src.resource_name, colour.to_html(false)]
+## Shared material per (source, colour, kind) triple. Duplicating per instance
+## would write thousands of near-identical materials into the scene file.
+##
+## Foliage gets a ShaderMaterial with vertex wind; everything else stays a plain
+## StandardMaterial3D. Bark deliberately does not sway, so trunks stay planted
+## while their canopies move.
+func _mat_for(src: StandardMaterial3D, colour: Color, foliage: bool = false) -> Material:
+	var key := "%s|%s|%s" % [src.resource_name, colour.to_html(false), foliage]
 	if _mat_cache.has(key):
 		return _mat_cache[key]
-	var m := src.duplicate() as StandardMaterial3D
-	m.albedo_color = colour
-	m.roughness = 1.0
-	# LAMBERT_WRAP, not TOON: toon's hard terminator collapses every away-facing
-	# surface to flat ambient and turns the whole forest grey.
-	m.diffuse_mode = BaseMaterial3D.DIFFUSE_LAMBERT_WRAP
-	m.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+
+	var m: Material
+	if foliage:
+		var sm := ShaderMaterial.new()
+		sm.shader = load("res://art/shaders/foliage.gdshader")
+		sm.set_shader_parameter("albedo", colour)
+		# Small plants flutter harder than tree canopies.
+		sm.set_shader_parameter("sway_strength", _rng.randf_range(0.04, 0.075))
+		sm.set_shader_parameter("sway_speed", _rng.randf_range(0.9, 1.5))
+		m = sm
+	else:
+		var std := src.duplicate() as StandardMaterial3D
+		std.albedo_color = colour
+		std.roughness = 1.0
+		# LAMBERT_WRAP, not TOON: toon's hard terminator collapses every
+		# away-facing surface to flat ambient and turns the forest grey.
+		std.diffuse_mode = BaseMaterial3D.DIFFUSE_LAMBERT_WRAP
+		std.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+		m = std
+
 	_mat_cache[key] = m
 	return m
 
@@ -170,7 +187,7 @@ func _prop(
 	holder.name = name_hint if name_hint != "" else model
 	holder.position = pos
 	holder.rotation.y = yaw
-	parent.add_child(holder)
+	parent.add_child(holder, true)
 	_own(holder)
 
 	var autumn := _rng.randf() < 0.11
@@ -189,7 +206,7 @@ func _prop(
 		var xf: Transform3D = parts[i]["xform"]
 		xf.origin *= s
 		mi.transform = xf.scaled_local(Vector3.ONE * s)
-		holder.add_child(mi)
+		holder.add_child(mi, true)
 		_own(mi)
 		for surf in mi.mesh.get_surface_count():
 			var src := mi.mesh.surface_get_material(surf) as StandardMaterial3D
@@ -197,7 +214,7 @@ func _prop(
 				continue
 			var n := src.resource_name.to_lower()
 			if n.contains("leaf") or n.contains("green") or n.contains("grass"):
-				mi.set_surface_override_material(surf, _mat_for(src, leaf))
+				mi.set_surface_override_material(surf, _mat_for(src, leaf, true))
 			elif n.contains("wood") or n.contains("bark") or n.contains("trunk"):
 				mi.set_surface_override_material(surf, _mat_for(src, bark))
 			else:
@@ -209,11 +226,11 @@ func _prop(
 	var box := _model_aabb(model)
 	var body := StaticBody3D.new()
 	body.name = "Body"
-	holder.add_child(body)
+	holder.add_child(body, true)
 	_own(body)
 	var col := CollisionShape3D.new()
 	col.name = "Shape"
-	body.add_child(col)
+	body.add_child(col, true)
 	_own(col)
 
 	if collide == "trunk":
@@ -237,14 +254,14 @@ func _static_box(
 	var body := StaticBody3D.new()
 	body.name = name
 	body.position = centre
-	parent.add_child(body)
+	parent.add_child(body, true)
 	_own(body)
 	var col := CollisionShape3D.new()
 	col.name = "Shape"
 	var shape := BoxShape3D.new()
 	shape.size = size
 	col.shape = shape
-	body.add_child(col)
+	body.add_child(col, true)
 	_own(col)
 	if visible_mesh:
 		var mi := MeshInstance3D.new()
@@ -254,7 +271,7 @@ func _static_box(
 		mi.mesh = bm
 		if mat:
 			mi.material_override = mat
-		body.add_child(mi)
+		body.add_child(mi, true)
 		_own(mi)
 	return body
 
@@ -319,7 +336,7 @@ func build_environment() -> void:
 	var we := WorldEnvironment.new()
 	we.name = "WorldEnvironment"
 	we.environment = env
-	_root.add_child(we)
+	_root.add_child(we, true)
 	_own(we)
 
 	var sun := DirectionalLight3D.new()
@@ -338,7 +355,7 @@ func build_environment() -> void:
 	# have normal +Z and are only lit when basis.z.z > 0 — which needs
 	# |rotation.y| < 90. At y=152 the whole treeline was backlit.
 	sun.rotation_degrees = Vector3(-46.0, -35.0, 0.0)
-	_root.add_child(sun)
+	_root.add_child(sun, true)
 	_own(sun)
 
 	var fill := DirectionalLight3D.new()
@@ -349,7 +366,7 @@ func build_environment() -> void:
 	fill.light_energy = 0.35
 	fill.shadow_enabled = false
 	fill.rotation_degrees = Vector3(-24.0, -30.0, 0.0)
-	_root.add_child(fill)
+	_root.add_child(fill, true)
 	_own(fill)
 
 
@@ -359,7 +376,7 @@ func build_ground() -> void:
 	var ground := Node3D.new()
 	ground.name = "Ground"
 	ground.rotation.y = RIVER_YAW
-	_root.add_child(ground)
+	_root.add_child(ground, true)
 	_own(ground)
 	_terrain = ground
 
@@ -398,14 +415,14 @@ func build_ground() -> void:
 		m.diffuse_mode = BaseMaterial3D.DIFFUSE_LAMBERT_WRAP
 		m.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
 		mi.material_override = m
-		ground.add_child(mi)
+		ground.add_child(mi, true)
 		_own(mi)
 
 
 func build_bounds() -> void:
 	var bounds := StaticBody3D.new()
 	bounds.name = "Bounds"
-	_root.add_child(bounds)
+	_root.add_child(bounds, true)
 	_own(bounds)
 	var sides := [
 		[Vector3(0, 8, -PLAY), Vector3(PLAY * 2.0, 18, 1)],
@@ -420,7 +437,7 @@ func build_bounds() -> void:
 		shape.size = sides[i][1]
 		col.shape = shape
 		col.position = sides[i][0]
-		bounds.add_child(col)
+		bounds.add_child(col, true)
 		_own(col)
 
 
@@ -428,7 +445,7 @@ func build_bounds() -> void:
 func build_mounds(world: Node) -> void:
 	var g := Node3D.new()
 	g.name = "Mounds"
-	world.add_child(g)
+	world.add_child(g, true)
 	_own(g)
 	var grass := load("res://art/materials/toon_grass.tres") as Material
 	var spots := [
@@ -444,7 +461,7 @@ func build_mounds(world: Node) -> void:
 		var body := StaticBody3D.new()
 		body.name = "Mound%d" % i
 		body.position = p
-		g.add_child(body)
+		g.add_child(body, true)
 		_own(body)
 		var mi := MeshInstance3D.new()
 		mi.name = "Mesh"
@@ -456,7 +473,7 @@ func build_mounds(world: Node) -> void:
 		mi.mesh = cone
 		mi.position.y = 0.0
 		mi.material_override = grass
-		body.add_child(mi)
+		body.add_child(mi, true)
 		_own(mi)
 		var col := CollisionShape3D.new()
 		col.name = "Shape"
@@ -464,7 +481,7 @@ func build_mounds(world: Node) -> void:
 		cyl.radius = r * 0.8
 		cyl.height = h * 2.0
 		col.shape = cyl
-		body.add_child(col)
+		body.add_child(col, true)
 		_own(col)
 		_keepout(p.x, p.z, r * 0.5)
 
@@ -472,7 +489,7 @@ func build_mounds(world: Node) -> void:
 func build_deku_tree(world: Node) -> void:
 	var g := Node3D.new()
 	g.name = "GreatDekuTree"
-	world.add_child(g)
+	world.add_child(g, true)
 	_own(g)
 
 	# The landmark has to win the skyline outright. Perimeter canopy tops out
@@ -481,7 +498,7 @@ func build_deku_tree(world: Node) -> void:
 	var knoll := StaticBody3D.new()
 	knoll.name = "DekuKnoll"
 	knoll.position = Vector3(0, 0, -21.0)
-	g.add_child(knoll)
+	g.add_child(knoll, true)
 	_own(knoll)
 	var kmesh := MeshInstance3D.new()
 	kmesh.name = "Mesh"
@@ -492,7 +509,7 @@ func build_deku_tree(world: Node) -> void:
 	kcone.radial_segments = 12
 	kmesh.mesh = kcone
 	kmesh.material_override = load("res://art/materials/toon_grass.tres") as Material
-	knoll.add_child(kmesh)
+	knoll.add_child(kmesh, true)
 	_own(kmesh)
 	var kcol := CollisionShape3D.new()
 	kcol.name = "Shape"
@@ -500,7 +517,7 @@ func build_deku_tree(world: Node) -> void:
 	kshape.radius = 8.0
 	kshape.height = 3.0
 	kcol.shape = kshape
-	knoll.add_child(kcol)
+	knoll.add_child(kcol, true)
 	_own(kcol)
 
 	_prop(g, "tree_detailed", Vector3(0, 1.4, -21.0), 0.2, 26.0, "trunk", "DekuTree")
@@ -529,7 +546,7 @@ func build_deku_tree(world: Node) -> void:
 func build_village(world: Node) -> void:
 	var g := Node3D.new()
 	g.name = "Village"
-	world.add_child(g)
+	world.add_child(g, true)
 	_own(g)
 
 	# clearing houses are hollow stumps in the source material, so oversized
@@ -586,7 +603,7 @@ func _house(parent: Node, model: String, pos: Vector3, yaw: float, _s: float) ->
 	holder.name = "House"
 	holder.position = pos
 	holder.rotation.y = facing + yaw * 0.12  # tiny jitter so they aren't uniform
-	parent.add_child(holder)
+	parent.add_child(holder, true)
 	_own(holder)
 
 	for part in _meshes_of(model):
@@ -596,7 +613,7 @@ func _house(parent: Node, model: String, pos: Vector3, yaw: float, _s: float) ->
 		var xf: Transform3D = part["xform"]
 		xf.origin *= scale
 		mi.transform = xf.scaled_local(scale)
-		holder.add_child(mi)
+		holder.add_child(mi, true)
 		_own(mi)
 		for surf in mi.mesh.get_surface_count():
 			var src := mi.mesh.surface_get_material(surf) as StandardMaterial3D
@@ -605,7 +622,7 @@ func _house(parent: Node, model: String, pos: Vector3, yaw: float, _s: float) ->
 
 	var body := StaticBody3D.new()
 	body.name = "Body"
-	holder.add_child(body)
+	holder.add_child(body, true)
 	_own(body)
 	var col := CollisionShape3D.new()
 	col.name = "Shape"
@@ -613,7 +630,7 @@ func _house(parent: Node, model: String, pos: Vector3, yaw: float, _s: float) ->
 	cbox.size = Vector3(WIDTH, HEIGHT, WIDTH)
 	col.shape = cbox
 	col.position.y = HEIGHT * 0.5
-	body.add_child(col)
+	body.add_child(col, true)
 	_own(col)
 
 	var radius := WIDTH * 0.5
@@ -636,7 +653,7 @@ func _house(parent: Node, model: String, pos: Vector3, yaw: float, _s: float) ->
 	door.position = pos + dir * (radius - 0.25) + Vector3(0, 1.1, 0)
 	door.rotation.y = facing
 	door.material_override = dark
-	parent.add_child(door)
+	parent.add_child(door, true)
 	_own(door)
 
 	var lintel := MeshInstance3D.new()
@@ -650,7 +667,7 @@ func _house(parent: Node, model: String, pos: Vector3, yaw: float, _s: float) ->
 		load("res://art/materials/toon_wood.tres") as StandardMaterial3D,
 		Color(0.42, 0.30, 0.20)
 	)
-	parent.add_child(lintel)
+	parent.add_child(lintel, true)
 	_own(lintel)
 
 	# Two lit windows either side, set a little above the door.
@@ -665,7 +682,7 @@ func _house(parent: Node, model: String, pos: Vector3, yaw: float, _s: float) ->
 		win.rotation.y = facing
 		win.material_override = glow
 		win.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		parent.add_child(win)
+		parent.add_child(win, true)
 		_own(win)
 
 	var step := MeshInstance3D.new()
@@ -682,7 +699,7 @@ func _house(parent: Node, model: String, pos: Vector3, yaw: float, _s: float) ->
 		load("res://art/materials/toon_wood.tres") as StandardMaterial3D,
 		Color(0.44, 0.36, 0.27)
 	)
-	parent.add_child(step)
+	parent.add_child(step, true)
 	_own(step)
 
 
@@ -691,7 +708,7 @@ func build_river(_world: Node) -> void:
 	# space and the stream inherits the diagonal.
 	var g := Node3D.new()
 	g.name = "River"
-	_terrain.add_child(g)
+	_terrain.add_child(g, true)
 	_own(g)
 
 	var water := MeshInstance3D.new()
@@ -701,14 +718,12 @@ func build_river(_world: Node) -> void:
 	water.mesh = plane
 	water.position = Vector3(0, -RIVER_DEPTH + 0.30, RIVER_Z)
 	water.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	var wm := StandardMaterial3D.new()
-	# Was washing out to near-white against the tan riverbed at low alpha.
-	wm.albedo_color = Color(0.24, 0.50, 0.62, 0.88)
-	wm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	wm.roughness = 0.15
-	wm.metallic_specular = 0.6
+	var wm := ShaderMaterial.new()
+	wm.shader = load("res://art/shaders/water.gdshader")
+	wm.set_shader_parameter("shallow_colour", Color(0.40, 0.70, 0.74, 0.72))
+	wm.set_shader_parameter("deep_colour", Color(0.13, 0.35, 0.50, 0.92))
 	water.material_override = wm
-	g.add_child(water)
+	g.add_child(water, true)
 	_own(water)
 
 	_prop(g, "bridge_wood", Vector3(0, 0, RIVER_Z), 0.0, 6.0, "none", "Bridge")
@@ -739,7 +754,7 @@ func build_river(_world: Node) -> void:
 func build_lookout(world: Node) -> void:
 	var g := Node3D.new()
 	g.name = "Lookout"
-	world.add_child(g)
+	world.add_child(g, true)
 	_own(g)
 	# Collision stays as clean boxes (reliable to walk and jump on) but they are
 	# invisible; actual rock models are stacked over them so it doesn't read as
@@ -781,7 +796,7 @@ func build_lookout(world: Node) -> void:
 		cap.mesh = cm
 		cap.position = Vector3(c.x, h - 0.12, c.z)
 		cap.material_override = grass
-		g.add_child(cap)
+		g.add_child(cap, true)
 		_own(cap)
 
 	# Loose boulders skirting the base so it grows out of the ground.
@@ -798,7 +813,7 @@ func build_lookout(world: Node) -> void:
 func build_gate(world: Node) -> void:
 	var g := Node3D.new()
 	g.name = "ForestGate"
-	world.add_child(g)
+	world.add_child(g, true)
 	_own(g)
 	var gz := 20.5
 
@@ -807,14 +822,14 @@ func build_gate(world: Node) -> void:
 	gate.set_script(load("res://items/gate.gd"))
 	gate.name = "ForestGateDoor"
 	gate.position = Vector3(6.0, 0, gz)
-	g.add_child(gate)
+	g.add_child(gate, true)
 	_own(gate)
 	gate.set("locked", true)
 	_prop(gate, "fence_gate", Vector3.ZERO, 0.0, 3.6, "none", "Mesh")
 
 	var blocker := StaticBody3D.new()
 	blocker.name = "Blocker"
-	gate.add_child(blocker)
+	gate.add_child(blocker, true)
 	_own(blocker)
 	var bshape := CollisionShape3D.new()
 	bshape.name = "Shape"
@@ -822,7 +837,7 @@ func build_gate(world: Node) -> void:
 	bbox.size = Vector3(3.6, 3.0, 0.6)
 	bshape.shape = bbox
 	bshape.position.y = 1.5
-	blocker.add_child(bshape)
+	blocker.add_child(bshape, true)
 	_own(bshape)
 
 	for i in 4:
@@ -843,7 +858,7 @@ func build_gate(world: Node) -> void:
 func build_perimeter(world: Node) -> void:
 	var g := Node3D.new()
 	g.name = "Perimeter"
-	world.add_child(g)
+	world.add_child(g, true)
 	_own(g)
 
 	for ring in 5:
@@ -889,7 +904,7 @@ func build_perimeter(world: Node) -> void:
 func build_scatter(world: Node) -> void:
 	var g := Node3D.new()
 	g.name = "Scatter"
-	world.add_child(g)
+	world.add_child(g, true)
 	_own(g)
 
 	var tufts := ["grass", "grass_large", "grass_leafs", "plant_bush",
@@ -944,7 +959,7 @@ func _rupee(parent: Node, pos: Vector3, value: int, colour: String) -> void:
 	node.set_script(load("res://items/rupee.gd"))
 	node.name = "Rupee"
 	node.position = pos
-	parent.add_child(node)
+	parent.add_child(node, true)
 	_own(node)
 	node.set("value", value)
 	node.set("colour", colour)
@@ -958,7 +973,7 @@ func _chest(
 	node.name = "Chest_" + id
 	node.position = pos
 	node.rotation.y = yaw
-	parent.add_child(node)
+	parent.add_child(node, true)
 	_own(node)
 	node.set("contains_key", key)
 	node.set("rupees", rupees)
@@ -973,7 +988,7 @@ func _sign_post(
 	node.name = "Sign_" + id
 	node.position = pos
 	node.rotation.y = yaw
-	parent.add_child(node)
+	parent.add_child(node, true)
 	_own(node)
 	node.set("text", text)
 	_prop(node, "sign", Vector3.ZERO, 0.0, 3.0, "none", "Mesh")
@@ -984,7 +999,7 @@ func _sign_post(
 func build_gameplay(world: Node) -> void:
 	var g := Node3D.new()
 	g.name = "Gameplay"
-	world.add_child(g)
+	world.add_child(g, true)
 	_own(g)
 
 	# The key is the reward for climbing the lookout — the one bit of
@@ -1002,9 +1017,11 @@ func build_gameplay(world: Node) -> void:
 	_sign_post(g, Vector3(-1.6, 0, -6.6), 0.1,
 		"Tread softly.\nThe Deku Tree is old and dreaming.", "deku")
 
-	# Teaching rupees: a couple right where you spawn.
-	_rupee(g, Vector3(-1.8, 0, 13.0), 1, "green")
-	_rupee(g, Vector3(1.9, 0, 12.2), 1, "green")
+	# Teaching rupees: a few paces ahead of the spawn, not underfoot. Standing
+	# on one at spawn collects it before the player knows what happened.
+	_rupee(g, Vector3(0.6, 0, 8.2), 1, "green")
+	_rupee(g, Vector3(3.4, 0, 7.4), 1, "green")
+	_rupee(g, Vector3(5.6, 0, 5.4), 1, "green")
 
 	# A trail up the lookout terraces so the climb is signposted.
 	var lookout := Vector3(-17.0, 0, 13.0)
@@ -1028,16 +1045,24 @@ func build_gameplay(world: Node) -> void:
 func build_actors() -> void:
 	var player := (load("res://actors/player/player.tscn") as PackedScene).instantiate()
 	player.name = "Player"
-	player.position = Vector3(0, 0.3, 16.0)
-	_root.add_child(player)
+	# Well inside the treeline. At z=16 the camera springs back to z~21, which
+	# is inside the perimeter canopy — and canopies carry no collision, so the
+	# SpringArm cannot push out of them. The view opened on a wall of leaves.
+	player.position = Vector3(2.5, 0.3, 12.5)
+	_root.add_child(player, true)
 	_own(player)
 
 	var hud := (load("res://ui/hud.tscn") as PackedScene).instantiate()
 	hud.name = "HUD"
-	_root.add_child(hud)
+	_root.add_child(hud, true)
 	_own(hud)
 
 	var debug := (load("res://ui/debug_overlay.tscn") as PackedScene).instantiate()
 	debug.name = "DebugOverlay"
-	_root.add_child(debug)
+	_root.add_child(debug, true)
 	_own(debug)
+
+	var pause := (load("res://ui/pause_menu.tscn") as PackedScene).instantiate()
+	pause.name = "PauseMenu"
+	_root.add_child(pause, true)
+	_own(pause)

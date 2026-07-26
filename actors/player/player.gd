@@ -44,14 +44,28 @@ extends CharacterBody3D
 @export var camera_follow_speed: float = 12.0
 ## Height above the player's origin the camera pivots around.
 @export var camera_target_height: float = 1.1
+## Base field of view, and how much it widens at full speed. A small kick sells
+## momentum far more cheaply than any change to the movement itself.
+@export var camera_fov: float = 70.0
+@export var camera_fov_kick: float = 6.0
 
 @export_group("Animation")
 ## Horizontal speed above which the character switches from idle to walk.
 @export var walk_anim_threshold: float = 0.4
+## Speed the walk cycle was authored for. The clip is time-scaled by
+## (actual speed / this), which stops the feet skating across the ground.
+@export var walk_anim_reference_speed: float = 3.2
+@export var walk_anim_scale_min: float = 0.65
+@export var walk_anim_scale_max: float = 2.1
+
+@export_group("Audio")
+## Seconds between footsteps at the reference walk speed.
+@export var footstep_interval: float = 0.42
 
 @onready var rig: Node3D = $Rig
 @onready var camera_pivot: Node3D = $CameraPivot
 @onready var spring_arm: SpringArm3D = $CameraPivot/SpringArm3D
+@onready var camera: Camera3D = $CameraPivot/SpringArm3D/Camera3D
 @onready var anim_tree: AnimationTree = $AnimationTree
 @onready var anim_player: AnimationPlayer = $Rig/Character/AnimationPlayer
 @onready var interact_field: Area3D = $InteractField
@@ -59,6 +73,8 @@ extends CharacterBody3D
 var _state_machine: AnimationNodeStateMachinePlayback
 var _focus: Interactable = null
 var _hud: Node = null
+var _footstep_timer := 0.0
+var _was_on_floor := true
 
 var _base_gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
 var _coyote_timer: float = 0.0
@@ -82,21 +98,19 @@ func _ready() -> void:
 		if anim_player.has_animation(clip):
 			anim_player.get_animation(clip).loop_mode = Animation.LOOP_LINEAR
 
-	_state_machine = anim_tree["parameters/playback"]
+	# The state machine now sits inside a blend tree behind a TimeScale node,
+	# so the playback path is nested.
+	_state_machine = anim_tree["parameters/StateMachine/playback"]
 
 	Toonify.apply($Rig/Character)
 	_hud = get_tree().get_first_node_in_group("hud")
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	# Esc is owned by the pause menu, which is also the only thing that releases
+	# the mouse — so the player can never get stuck with a captured cursor.
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		_rotate_camera(-event.relative.x * mouse_sensitivity, -event.relative.y * mouse_sensitivity)
-	elif event.is_action_pressed("toggle_mouse"):
-		Input.mouse_mode = (
-			Input.MOUSE_MODE_VISIBLE
-			if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
-			else Input.MOUSE_MODE_CAPTURED
-		)
 
 
 func _rotate_camera(yaw_delta: float, pitch_delta: float) -> void:
@@ -134,6 +148,11 @@ func _physics_process(delta: float) -> void:
 		velocity.y = sqrt(2.0 * _base_gravity * gravity_scale_up * jump_height)
 		_jump_buffer_timer = 0.0
 		_coyote_timer = 0.0
+		Audio.play("jump", -8.0)
+
+	if on_floor and not _was_on_floor:
+		Audio.play("land", -9.0)
+	_was_on_floor = on_floor
 
 	# Variable jump height: releasing the button early cuts the rise short.
 	if Input.is_action_just_released("jump") and velocity.y > 0.0:
@@ -143,6 +162,7 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	_face_movement_direction(delta)
 	_update_animation(on_floor)
+	_update_footsteps(delta, on_floor)
 
 
 func _apply_movement(delta: float, on_floor: bool) -> void:
@@ -193,6 +213,13 @@ func _update_camera(delta: float) -> void:
 		target, 1.0 - exp(-camera_follow_speed * delta)
 	)
 
+	# Widen the lens slightly with speed. Eases in faster than it eases out, so
+	# starting to run feels punchy but stopping doesn't snap.
+	var ratio := clampf(get_horizontal_speed() / maxf(max_speed, 0.01), 0.0, 1.0)
+	var wanted := camera_fov + camera_fov_kick * ratio
+	var rate := 4.0 if wanted > camera.fov else 2.5
+	camera.fov = lerpf(camera.fov, wanted, 1.0 - exp(-rate * delta))
+
 
 func _process(_delta: float) -> void:
 	_update_focus()
@@ -235,11 +262,34 @@ func _update_focus() -> void:
 func _update_animation(on_floor: bool) -> void:
 	if _state_machine == null:
 		return
+	var speed := get_horizontal_speed()
 	var wanted := "jump"
 	if on_floor:
-		wanted = "walk" if get_horizontal_speed() > walk_anim_threshold else "idle"
+		wanted = "walk" if speed > walk_anim_threshold else "idle"
 	if _state_machine.get_current_node() != wanted:
 		_state_machine.travel(wanted)
+
+	# Match the clip's playback rate to how fast we're actually travelling.
+	var scale := 1.0
+	if wanted == "walk":
+		scale = clampf(
+			speed / maxf(walk_anim_reference_speed, 0.01),
+			walk_anim_scale_min,
+			walk_anim_scale_max,
+		)
+	anim_tree.set("parameters/TimeScale/scale", scale)
+
+
+func _update_footsteps(delta: float, on_floor: bool) -> void:
+	var speed := get_horizontal_speed()
+	if not on_floor or speed < walk_anim_threshold:
+		# Land the next step immediately on resuming, rather than mid-stride.
+		_footstep_timer = footstep_interval * 0.4
+		return
+	_footstep_timer -= delta * (speed / maxf(walk_anim_reference_speed, 0.01))
+	if _footstep_timer <= 0.0:
+		_footstep_timer = footstep_interval
+		Audio.play("walking", -18.0, 0.14)
 
 
 ## Current horizontal speed, for the debug readout.

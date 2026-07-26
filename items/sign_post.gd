@@ -8,6 +8,7 @@ func _ready() -> void:
 	super()
 	prompt = "Read"
 	var shape := CollisionShape3D.new()
+	shape.name = "Shape"
 	var box := BoxShape3D.new()
 	box.size = Vector3(2.6, 2.4, 2.6)
 	shape.shape = box

@@ -13,6 +13,7 @@ func _ready() -> void:
 	super()
 	prompt = "Unlock"
 	var shape := CollisionShape3D.new()
+	shape.name = "Shape"
 	var box := BoxShape3D.new()
 	box.size = Vector3(5.0, 3.0, 4.0)
 	shape.shape = box
@@ -24,9 +25,12 @@ func _on_interact(_by: Node3D) -> void:
 	if _open:
 		return
 	if locked and not GameState.spend_key():
+		# Dull thud: the refusal should sound different from success.
+		Audio.play("fall", -10.0)
 		GameState.say("The gate is locked. A small key would open it.")
 		return
 
+	Audio.play("break", -4.0)
 	_open = true
 	prompt = "Open"
 	GameState.say("The gate swings open. The forest path lies beyond...")

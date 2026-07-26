@@ -8,9 +8,19 @@ var _player: Node3D
 
 func _ready() -> void:
 	_player = get_tree().get_first_node_in_group("player")
+	# Off by default. A permanent stats readout over the view is a dev tool,
+	# not something a player should have to look past.
+	visible = false
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("debug_toggle"):
+		visible = not visible
 
 
 func _process(_delta: float) -> void:
+	if not visible:
+		return
 	if _player == null:
 		_player = get_tree().get_first_node_in_group("player")
 		return
@@ -24,8 +34,8 @@ func _process(_delta: float) -> void:
 		"grounded     %s" % grounded,
 		"anim         %s" % _player.get_anim_state(),
 		"",
-		"WASD move  |  Space jump  |  Mouse look",
-		"Esc releases the mouse",
+		"WASD move | Space jump | E interact",
+		"Esc pause | F3 hide this",
 		"",
 		"Tune live: Debugger -> Remote -> Player",
 	])

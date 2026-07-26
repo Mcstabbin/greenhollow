@@ -45,6 +45,7 @@ func _ready() -> void:
 	add_child(_mesh)
 
 	var shape := CollisionShape3D.new()
+	shape.name = "Shape"
 	var sphere := SphereShape3D.new()
 	sphere.radius = 0.9
 	shape.shape = sphere
@@ -65,6 +66,8 @@ func _on_body_entered(body: Node3D) -> void:
 		return
 	_taken = true
 	GameState.add_rupees(value)
+	# Higher pitch for the bigger denominations, so value is audible.
+	Audio.play("coin", -4.0)
 	set_deferred("monitoring", false)
 
 	# Small pop before it disappears.
