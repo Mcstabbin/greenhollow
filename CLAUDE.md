@@ -364,17 +364,30 @@ to the code. Each of these failed a round before it was understood.
   measure `nd` 1.29–1.33 while the character's own creases have a median `nd` of
   1.39. Same magnitude, so any threshold that kills one kills the other. The real
   fix is smoothing the terrain mesh's vertex normals, which is a level change.
-- **The value structure is inverted, and this is now the live art problem.**
-  Measured albedo luminance: outline **0.05** · grass **0.47** · **tunic 0.49** ·
-  stone 0.64 · **foliage 0.67** · sky top 0.55 · **sky horizon 0.91**. The player
-  and the ground are the same value *and* the same hue, and the two brightest
-  things on screen are both background. The rule is the opposite — the focal point
-  holds the highest contrast while background sits mid-to-dark. Consequences seen
-  repeatedly: anything mid-value placed on grass disappears (which is why the
-  charge tell had to be fixed on value, not hue), and now that the outline is
-  depth-attenuated the distant trees are low-contrast against a 0.91 sky. **Judge
-  every effect in greyscale** — it tells you immediately whether a dark edge is
-  doing its job.
+- **The value structure was inverted. Fixed — don't re-derive it from albedo.**
+  The old figures (grass 0.47, foliage 0.67, sky horizon 0.91, "tunic 0.49") were
+  read off *authored albedo*, and two of them misled badly. **`toon_tunic.tres` is
+  referenced by nothing** — the character is textured from the Kenney colormap and
+  its torso renders at a clipped **1.000**, so "player and ground are the same
+  value" was never true on screen and raising the tunic would have changed no
+  pixel. And the mean hid the real number: every one of the **509** foliage
+  materials was authored brighter than the grass, median **0.691**, so the
+  background held the top of value on all five establishing angles.
+  Rendered, at 640x480, the fix put the tiers in the right order — character
+  **~1.00** · play field **~0.62** · treeline **0.41-0.57** · outline 0.05. The
+  treeline minus play-field figure went from **+0.07/+0.08/+0.11/+0.12/+0.20 to
+  -0.17/-0.19/-0.08/-0.10/-0.02**, the std-dev ratio from 1.89/1.60/1.88/1.36/1.64
+  to 1.35/1.20/1.34/1.00/1.11, and the character's separation from the ground
+  behind it rose on **14 of 14** legibility frames. Three levers did it, and the
+  order matters: a depth ramp *and* a flat term in `art/shaders/foliage.gdshader`
+  (one shader, 509 materials, GPU cost inside noise), `sky_horizon_color` 0.91 ->
+  0.73, and `toon_grass` 0.474 -> 0.428. **Measure rendered frames, not albedo**,
+  and **judge in greyscale** — the greyscale pair is what made both of the above
+  errors obvious in one look.
+- **A whole-frame exposure lever cannot fix a figure/ground relationship**, and
+  `ambient_light_energy` is the tempting one — 2.1 genuinely is over-exposure. See
+  the note at the property in `greenhollow_clearing.tscn` for the measured
+  outcome; it is a real but tenth-order gain against a large cost.
 - **Shape carries motion; the outline cannot.** The hardest-won lesson here. An
   un-outlined effect reads as a *rendering artefact*, and an outlined, opaque,
   hard-edged one reads as a *solid prop* — two critics, two rounds, both correct.

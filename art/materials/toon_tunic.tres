@@ -1,5 +1,11 @@
 [gd_resource type="StandardMaterial3D" format=3]
 
+; UNREFERENCED. Nothing in the project loads this file — `player.tscn` instances
+; `art/models/character.glb`, which is textured from the Kenney colormap atlas, so
+; the character's colours do not come from here. Its 0.49 luminance was quoted for
+; a while as the player's on-screen value and used to argue the player matched the
+; grass; the torso actually renders clipped at 1.000. Either wire it up or delete
+; it, but do not cite it as a measurement.
 [resource]
 resource_name = "toon_tunic"
 albedo_color = Color(0.16, 0.6, 0.4, 1)

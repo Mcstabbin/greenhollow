@@ -2,7 +2,13 @@
 
 [resource]
 resource_name = "toon_grass"
-albedo_color = Color(0.35, 0.53, 0.29, 1)
+; Was Color(0.35, 0.53, 0.29) = Rec.709 luminance 0.474, which rendered as a flat
+; 0.741 across the whole lower frame — the second brightest large region after the
+; character, and the reason a mid-value effect laid on grass disappears. 0.428
+; here renders at ~0.67, so the three tiers separate: character ~1.0, stage ~0.67,
+; treeline 0.47-0.62. Covers the whole play field: BankNorth/BankSouth, the four
+; Mounds, DekuKnoll and the three Lookout ledges all override to this one file.
+albedo_color = Color(0.31, 0.48, 0.26, 1)
 roughness = 0.95
 metallic_specular = 0.06
 diffuse_mode = 3

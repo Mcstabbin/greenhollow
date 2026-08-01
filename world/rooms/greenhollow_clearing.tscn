@@ -17,10 +17,17 @@
 [ext_resource type="Script" path="res://ui/debug_overlay.gd" id="15_el7p3"]
 [ext_resource type="PackedScene" path="res://ui/pause_menu.tscn" id="16_od1b5"]
 [ext_resource type="Script" path="res://ui/pause_menu.gd" id="17_ksfac"]
+[ext_resource type="Resource" path="res://items/axe.tres" id="18_axe"]
+[ext_resource type="Resource" path="res://items/bow.tres" id="19_bow"]
+[ext_resource type="Resource" path="res://items/shield.tres" id="20_shield"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_uixu3"]
 sky_top_color = Color(0.32, 0.58, 0.88, 1)
-sky_horizon_color = Color(0.87, 0.92, 0.9, 1)
+; Was Color(0.87, 0.92, 0.9) = Rec.709 luminance 0.91, the brightest thing in the
+; game and a background element. Now 0.73, so the sky sits under the character's
+; white torso instead of over it. Safe to change in isolation:
+; ambient_light_sky_contribution is 0.0, so sky colour lights nothing.
+sky_horizon_color = Color(0.66, 0.75, 0.78, 1)
 sky_curve = 0.12
 ground_bottom_color = Color(0.32, 0.4, 0.3, 1)
 ground_horizon_color = Color(0.74, 0.79, 0.68, 1)
@@ -34,11 +41,25 @@ sky = SubResource("Sky_wiqbh")
 ambient_light_source = 2
 ambient_light_color = Color(0.88, 0.91, 0.84, 1)
 ambient_light_sky_contribution = 0.0
+; 2.1 IS over-exposure — the white torso clips hard, which is why it reads 1.000
+; on every frame. Trimming it to 1.55 was measured and REJECTED, but only just, so
+; the numbers are here rather than a verdict. Across the five `clearing` angles it
+; moved the character's separation from the ground behind it by +0.002/+0.031/
+; +0.018/+0.033/+0.002 — a real gain, but a tenth of what albedo and depth already
+; bought (+0.080 to +0.106 on the same five). Against that it costs the character
+; its clipped top of range (1.000 -> 0.956-0.996), drops the whole frame another
+; 8% on top of the 22% the albedo work already took out, and re-lights the blade
+; tells and shadow blob, which is live combat territory. Exposure is a whole-frame
+; lever: it cannot change a figure/ground RELATIONSHIP, only the level everything
+; sits at. Revisit it as its own piece with the combat frames in hand.
 ambient_light_energy = 2.1
 reflected_light_source = 2
 fog_enabled = true
-fog_light_color = Color(0.8, 0.88, 0.82, 1)
-fog_density = 0.0035
+fog_mode = 1
+fog_light_color = Color(0.17, 0.26, 0.27, 1)
+fog_density = 0.55
+fog_depth_begin = 16.0
+fog_depth_end = 58.0
 fog_sky_affect = 0.12
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_6gflr"]
@@ -9830,6 +9851,20 @@ transform = Transform3D(0.62161, 0, -0.7833269, 0, 1, 0, 0.7833269, 0, 0.62161, 
 script = ExtResource("7_hx10c")
 contains_key = true
 chest_id = "lookout_key"
+
+; The weapon chest, a short walk from the spawn. It holds a PREFERENCE, not an object:
+; `contains` is an ordered list and what comes out is the first entry the opener has never
+; found, so the same chest would hand over the bow if the axe were already yours. The
+; sword is not listed because the player starts holding it — components/loadout.gd records
+; the starting item as found for exactly this reason.
+;
+; One chest gives one item, because Interactable.one_shot is what makes a chest a chest.
+; The other three arrive as more chests, or immediately via the F4 debug cycle.
+[node name="Chest_weapons" type="Area3D" parent="World/Gameplay"]
+transform = Transform3D(0.9, 0, -0.4358899, 0, 1, 0, 0.4358899, 0, 0.9, 6, 0, 11.5)
+script = ExtResource("7_hx10c")
+contains = Array[ItemData]([ExtResource("18_axe"), ExtResource("19_bow"), ExtResource("20_shield")])
+chest_id = "village_weapons"
 
 [node name="Chest_shrine_rupees" type="Area3D" parent="World/Gameplay" unique_id=1455968131]
 transform = Transform3D(-0.666276, 0, 0.74570525, 0, 1, 0, -0.74570525, 0, -0.666276, 4.8, 1.5, -19.5)
