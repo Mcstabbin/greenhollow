@@ -42,11 +42,19 @@ extends MeshInstance3D
 ## How flat the ring sits. The mesh is a torus; squashing it in Y turns the tube
 ## into a band lying on the ground.
 @export var flatten: float = 0.32
+## Held this far above any water surface it overlaps. Same fault as the spin ring's,
+## and the same reason: an opaque ring under transparent water keeps its outline and
+## loses its fill, which draws as a contour around nothing. See water_line.gd.
+@export var water_clearance: float = 0.06
 
 var _time := -1.0
+## Resting height above the player's origin, so the water lift adds to the authored
+## offset rather than replacing it.
+var _base_height := 0.0
 
 
 func _ready() -> void:
+	_base_height = position.y
 	visible = false
 
 
@@ -58,12 +66,15 @@ func begin() -> void:
 		return
 	_time = 0.0
 	visible = true
+	position.y = _base_height
+	position.y += WaterLine.lift_over_water(self, radius_from, water_clearance)
 	_apply(0.0)
 
 
 func stop() -> void:
 	_time = -1.0
 	visible = false
+	position.y = _base_height
 
 
 func _process(delta: float) -> void:

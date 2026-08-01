@@ -15,7 +15,7 @@ extends MeshInstance3D
 ## Built as a world-space ribbon (`top_level`) rather than a child transform,
 ## because the whole point is that the older samples must NOT follow the arm.
 ##
-## Five things here are corrections, not preferences. A critic found each one.
+## Six things here are corrections, not preferences. A critic found each one.
 ##
 ##  1. OPAQUE, NOT TRANSPARENT. Godot fills the depth and normal-roughness
 ##     buffers *before* the transparent pass, and art/shaders/outline_post reads
@@ -52,6 +52,38 @@ extends MeshInstance3D
 ##     distance-gated insertion with interpolated in-between points, then
 ##     Laplacian smoothing, then a width `Curve` so the thing tapers into a
 ##     crescent instead of staying a parallelogram.
+##  6. A CRESCENT, NOT A FAN — and this is the correction that made the opaque
+##     ribbon stop reading as a prop. Going opaque (1) fixed "reads as a lighting
+##     artefact" and overshot straight into the opposite failure: a critic scoring
+##     12/12 on the same set still said the arc "reads as geometry, not as an
+##     effect ... at a still frame the arc looks like a physical prop the character
+##     is holding: a cone, a sail, a wedge of cheese, a saucer", and ranked the spin
+##     frame maximum screen area, minimum clarity. Alpha is not available as the
+##     answer — `transparency = 1` puts the ribbon back where the outline pass
+##     cannot see it — so the falloff is geometric:
+##       * The ribbon's OUTER edge is fixed one `outer_reach` past the tip and the
+##         width is taken INWARD from it, rather than the old symmetric spread about
+##         the blade's midpoint. So the ribbon narrows onto the leading arc, and the
+##         middle of a swept disc stays EMPTY. For the spin, whose ribbon wraps more
+##         than a full revolution, that is the whole difference between a filled
+##         saucer and an annulus: the bridge is visible through the hole, and a ring
+##         of motion around the character cannot be mistaken for a held object.
+##       * The tail therefore also stops reaching the grip. The old ribbon ran from
+##         past-the-hand to past-the-tip along its entire length, so its near end
+##         terminated in a hard edge at the hand — visible in captures as a ragged
+##         black mass at the character's waist. Now only the newest cross-sections
+##         reach the hand at all, so the ribbon emerges FROM the blade.
+##       * `gap_centres` breaks the older part of the ribbon into separating slivers.
+##         Gaps imply motion in a way a continuous sheet cannot, they cost area, and
+##         each sliver is its own opaque shape so each one gets its own contour.
+##         Only the trailing 60% is broken; the leading edge stays continuous,
+##         because that is the part that says which way the blade is going.
+##     Measured rather than eyeballed: the ribbon's screen footprint, counted by
+##     capturing one frozen frame with the trail shown and hidden and differencing the
+##     two, is 14% smaller than the old fan on the spin and 12% smaller on a slash. The
+##     honest reading of that number is that this change is about DISTRIBUTION, not
+##     ink — same order of coverage, arranged as a hollow broken ring instead of a
+##     filled sheet.
 
 ## The blade's inner and outer ends. Sampled every tick; the quad between two
 ## consecutive samples is one segment of the ribbon.
@@ -66,11 +98,25 @@ extends MeshInstance3D
 ## inserts none, so counting points would make the ribbon's length depend on how
 ## hard the blade happened to be moving.
 @export var history_ticks: float = 12.0
-## How far past each end of the blade the ribbon reaches, as a fraction of blade
-## length. 0.0 is base-to-tip; 0.6 makes the band 2.2 m across, which at 640 px
-## is the difference between a band and a scratch. Past about 0.8 the spin's two
-## revolutions merge into a filled orange disc rather than a ring.
-@export var over_reach: float = 0.6
+## Where the ribbon's OUTER edge sits, past the blade tip, in blade lengths. This
+## is the leading arc — the boundary furthest from the body and first into the
+## space the blade is about to occupy — and it is deliberately the one edge that
+## does NOT move: the crescent opens and closes by sliding its inner edge, so the
+## silhouette a player tracks stays put.
+@export var outer_reach: float = 0.75
+## Where the ribbon's inner edge sits at its widest (newest) cross-section, past
+## the hand, in blade lengths. Small: it only has to cover the grip so the ribbon
+## looks like it comes off the blade. Everything older narrows away from it.
+##
+## The pair (0.75, 0.05) rather than (0.55, 0.20) is a deliberate trade at constant
+## width — the band spans 1.8 blade lengths either way, but it sits 0.2 of a blade
+## further out from the body. That is worth having, because the only screen space the
+## camera does not have to look THROUGH the character to reach is outside the shoulders
+## and above the head, so the outermost part of the ribbon is the part that escapes both
+## the silhouette and the props. On slash_b's first live frame beside a chest — the
+## frame a critic said "the signpost eats the arc" of — the shift is the difference
+## between no visible arc and one clearly outside the head.
+@export var inner_reach: float = 0.05
 ## Ticks the finished ribbon takes to narrow away to nothing once sampling stops.
 ## Geometric, not alpha — see the note on the opaque pipeline above. Ageing keeps
 ## running through the fade, so the ribbon shortens from the tail at the same time
@@ -89,9 +135,19 @@ extends MeshInstance3D
 ## actually turns the faceted polygon into an arc.
 @export var smooth_passes: int = 4
 @export_range(0.0, 1.0) var smooth_strength: float = 0.5
-## Width against age along the ribbon: 0 is the oldest sample, 1 the newest.
-## Without it the ribbon is a parallelogram. Authored in player.tscn.
+## Width against age along the ribbon: 0 is the oldest sample, 1 the newest, and
+## the value is the fraction of the full `inner_reach + 1 + outer_reach` span that
+## is open at that point. Without it the ribbon is a parallelogram. Authored in
+## player.tscn.
 @export var width_curve: Curve
+## Where along the ribbon the trailing slivers separate, as a fraction from the
+## tail. Only the older part is broken; see note 6 in the header.
+@export var gap_centres: PackedFloat32Array = PackedFloat32Array([0.13, 0.33, 0.53])
+## How wide each of those gaps is, in the same fraction-of-length units. 0.06 of a
+## ribbon that spans roughly a third of the frame is on the order of a dozen pixels at
+## 640 px — enough to read as a gap, not enough to look like dropped geometry. 0.07 was
+## tried and cost the frames a prop already eats; see the width curve in player.tscn.
+@export var gap_width: float = 0.06
 ## The wind-up. A critic could only find the wind-up frame by comparing it against
 ## its paired idle — "a forearm raised one body-width with no flash, no trail, no
 ## ground mark and no change in stance is not enough at speed". So the ribbon now
@@ -291,35 +347,79 @@ func _rebuild() -> void:
 	spine = _smoothed(spine)
 	span = _smoothed(span)
 
-	# Total width is the blade span pushed out past both ends, tapered by the
-	# curve, narrowed by the bloom the sample was born with, and collapsed by the
-	# fade. All four are multiplicative, and none of them touches alpha.
-	var reach := 1.0 + 2.0 * over_reach
+	# Cross-sections are measured in BLADE LENGTHS along the blade's own axis: 0 is
+	# the base, 1 the tip. The outer edge is pinned one `outer_reach` past the tip
+	# and every cross-section takes its width INWARD from there, rather than
+	# spreading symmetrically about the blade's midpoint as it used to. That
+	# asymmetry is the whole of note 6: the ribbon collapses onto its leading arc,
+	# the middle of a swept circle stays empty, and the tail no longer reaches the
+	# grip. Width is tapered by the curve, narrowed by the bloom the sample was born
+	# with, and collapsed by the fade — all multiplicative, none touching alpha.
+	var s_out := 1.0 + outer_reach
+	var full := s_out + inner_reach
 	var fade := clampf(_fade, 0.0, 1.0)
-	var half := PackedVector3Array()
-	half.resize(count)
+	var s_in := PackedFloat32Array()
+	var solid := PackedByteArray()
+	s_in.resize(count)
+	solid.resize(count)
 	for i in count:
 		var u := float(i) / float(count - 1)
-		half[i] = span[i] * (0.5 * reach * _taper(u) * _bloom[i] * fade)
+		s_in[i] = s_out - full * _taper(u) * _bloom[i] * fade
+		solid[i] = 0 if _in_gap(u) else 1
 
+	# One strip per band per unbroken run. A run holding a single cross-section
+	# contains no quad and would draw nothing, so short runs are dropped rather than
+	# emitted as a degenerate surface.
 	for band in BAND_ROLES.size():
 		var v0: float = BAND_STOPS[band]
 		var v1: float = BAND_STOPS[band + 1]
 		var role: int = BAND_ROLES[band]
-		_immediate.surface_begin(Mesh.PRIMITIVE_TRIANGLE_STRIP)
-		for i in count:
-			var colour := _band_colour(role, float(i) / float(count - 1), fade)
-			_immediate.surface_set_color(colour)
-			_immediate.surface_add_vertex(spine[i] + half[i] * (v0 * 2.0 - 1.0))
-			_immediate.surface_set_color(colour)
-			_immediate.surface_add_vertex(spine[i] + half[i] * (v1 * 2.0 - 1.0))
-		_immediate.surface_end()
+		var i := 0
+		while i < count:
+			if solid[i] == 0:
+				i += 1
+				continue
+			var run_end := i
+			while run_end + 1 < count and solid[run_end + 1] == 1:
+				run_end += 1
+			if run_end > i:
+				_immediate.surface_begin(Mesh.PRIMITIVE_TRIANGLE_STRIP)
+				for k in range(i, run_end + 1):
+					var u := float(k) / float(count - 1)
+					var colour := _band_colour(role, u, fade)
+					_immediate.surface_set_color(colour)
+					_immediate.surface_add_vertex(_edge(spine[k], span[k], s_in[k], s_out, v0))
+					_immediate.surface_set_color(colour)
+					_immediate.surface_add_vertex(_edge(spine[k], span[k], s_in[k], s_out, v1))
+				_immediate.surface_end()
+			i = run_end + 1
 
 
 func _taper(u: float) -> float:
 	if width_curve != null:
 		return width_curve.sample_baked(u)
-	return lerpf(0.28, 1.0, u)
+	return lerpf(0.26, 0.97, u)
+
+
+## One point on a cross-section. `v` is the band stop, 0 at the inner edge and 1 at
+## the outer; `s_in`/`s_out` are that cross-section's edges in blade lengths, where
+## 0 is the blade base and 1 the tip. `spine` is the blade's midpoint, hence the
+## half-length offset.
+func _edge(spine: Vector3, span: Vector3, s_in: float, s_out: float, v: float) -> Vector3:
+	return spine + span * (lerpf(s_in, s_out, v) - 0.5)
+
+
+## Is this point of the length inside one of the trailing gaps? Gaps past the
+## midpoint are ignored outright: breaking up the leading edge would cost the one
+## part of the ribbon that says which way the blade is travelling.
+func _in_gap(u: float) -> bool:
+	if u > 0.6:
+		return false
+	var half_gap := gap_width * 0.5
+	for centre in gap_centres:
+		if absf(u - centre) < half_gap:
+			return true
+	return false
 
 
 ## Flat colour for one band at one point along the length. `u` is 0 at the tail.

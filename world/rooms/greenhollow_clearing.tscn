@@ -8274,7 +8274,12 @@ mesh = SubResource("CylinderMesh_qpw51")
 
 [node name="River" type="Node3D" parent="Ground" unique_id=944551148]
 
-[node name="WaterSurface" type="MeshInstance3D" parent="Ground/River" unique_id=1398666605]
+; In the `water_surface` group so that opaque effects can ask where the waterline is
+; without knowing anything about this level. actors/player/water_line.gd explains
+; why they have to: this surface is `blend_mix`, so it erases an opaque effect's fill
+; without writing depth, and the outline pass then contours a shape that is not
+; visibly there. The group is the whole of the coupling.
+[node name="WaterSurface" type="MeshInstance3D" parent="Ground/River" groups=["water_surface"] unique_id=1398666605]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.4, -2)
 material_override = SubResource("ShaderMaterial_shf01")
 cast_shadow = 0

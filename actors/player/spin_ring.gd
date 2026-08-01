@@ -22,6 +22,12 @@ extends MeshInstance3D
 ## so the ring holds full strength and then goes: which is what the reference
 ## material recommends anyway — trails and slash shapes read as punchy *because*
 ## they vanish rather than trailing off.
+##
+## The other price is that an opaque ring under TRANSPARENT water is a rendering
+## fault, and that was found in a capture rather than reasoned about: the river erases
+## the ring's fill while the outline pass still contours its depth, so the ring drew
+## as black arcs around nothing on the water. `water_clearance` is the fix and
+## water_line.gd carries the full diagnosis.
 
 ## Ring radius at the start and end of the flash, in metres. The end radius is
 ## deliberately a little wider than the blade's own reach — the ring is the
@@ -39,23 +45,39 @@ extends MeshInstance3D
 ## Ease-out exponent. Fast expansion on the first frames is what reads as a
 ## shockwave rather than as a circle being scaled up.
 @export var ease_power: float = 2.2
+## How far above a water surface the ring is held when it would otherwise sweep
+## underneath one. See water_line.gd for what goes wrong if it does not: an opaque
+## ring under transparent water loses its fill to the water and keeps its outline,
+## so it draws as black arcs around nothing and reads as the water being broken.
+@export var water_clearance: float = 0.06
 
 var _time := -1.0
+## Resting height above the player's origin, so the water lift is applied on top of
+## the authored offset rather than replacing it.
+var _base_height := 0.0
 
 
 func _ready() -> void:
+	_base_height = position.y
 	visible = false
 
 
 func flash() -> void:
 	_time = 0.0
 	visible = true
+	# Resolved once per flash, not per frame: the ring is a fixed 0.34 s and the
+	# player barely moves inside it, and a height that changed mid-expansion would
+	# read as the ring climbing. `radius_to` rather than the current radius, because
+	# the ring must already be clear before it grows over the river.
+	position.y = _base_height
+	position.y += WaterLine.lift_over_water(self, radius_to, water_clearance)
 	_apply(0.0)
 
 
 func stop() -> void:
 	_time = -1.0
 	visible = false
+	position.y = _base_height
 
 
 func _process(delta: float) -> void:

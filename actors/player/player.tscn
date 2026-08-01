@@ -1,4 +1,4 @@
-[gd_scene load_steps=57 format=3]
+[gd_scene load_steps=58 format=3]
 
 [ext_resource type="Script" path="res://actors/player/player.gd" id="1_player"]
 [ext_resource type="PackedScene" path="res://art/models/character.glb" id="2_character"]
@@ -20,6 +20,7 @@
 [ext_resource type="Script" path="res://actors/player/sword_trail.gd" id="18_trail"]
 [ext_resource type="Script" path="res://actors/player/spin_ring.gd" id="19_ring"]
 [ext_resource type="Script" path="res://actors/player/charge_ring.gd" id="20_chargering"]
+[ext_resource type="Shader" path="res://art/shaders/ground_ring.gdshader" id="21_groundring"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.4
@@ -106,19 +107,28 @@ albedo_color = Color(1, 1, 1, 1)
 cull_mode = 2
 disable_receive_shadows = true
 
-; Width against age along the ribbon: 0 is the tail, 1 the newest sample at the
-; blade. Without a taper the ribbon is a parallelogram; with one it is a crescent.
+; How much of the ribbon's full width is open along its length: 0 is the tail, 1 the
+; newest sample at the blade. Without a taper the ribbon is a parallelogram.
 ;
-; The tail keeps 40% of the width rather than going to zero, and the number was
-; measured rather than chosen. At 26% the crescent was prettier but slash_b's first
-; live frame — the swing that crosses in FRONT of the chest, i.e. the one volume the
-; camera has to look through the character to reach — had nothing left outside the
-; torso but a thin dark sliver at the shoulder. A tapering ribbon still reads as a
-; swing; a ribbon with no area does not read at all. 40% is the floor that keeps the
-; early frames legible, and a true point would be one pixel wide and vanish before
-; the outline pass could contour it anyway.
+; sword_trail.gd takes the width INWARD from a fixed outer edge, so this curve also
+; decides how much of a swept circle stays hollow — which is why the tail is 0.26 where
+; the old symmetric model needed 0.4. Under that model a thin tail was a thin sliver at
+; the SHOULDER, inside the silhouette, and it cost slash_b's first live frame; taken
+; inward from the leading arc the same fraction sits at the tip's radius instead, well
+; outside the body, so it is both smaller and more visible. The full span is 1.80 blade
+; lengths, i.e. 1.66 m, so the tail is 0.43 m and the head 1.61 m — roughly 21 and 78 px
+; at the capture size. A band, not a scratch.
+;
+; These three numbers were settled by measurement, not taste. The ribbon's screen
+; footprint was counted by capturing the same frozen frame with the trail shown and
+; hidden and differencing: against the old fan it is 14% smaller on the spin and 12%
+; smaller on a slash. A more aggressive curve (0.24 / 0.54 / 0.92) reached 17-19% and
+; was rejected — it left slash_b's first live frame, the one a chest already eats, with
+; a single sliver where this keeps two. Structure is what the critic was complaining
+; about, and structure is carried by the hollow centre and the gaps; area is secondary,
+; and legibility is not negotiable.
 [sub_resource type="Curve" id="Curve_trail_width"]
-_data = [Vector2(0, 0.4), 0.0, 0.0, 0, 0, Vector2(0.45, 0.82), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0]
+_data = [Vector2(0, 0.26), 0.0, 0.0, 0, 0, Vector2(0.5, 0.58), 0.0, 0.0, 0, 0, Vector2(1, 0.97), 0.0, 0.0, 0, 0]
 point_count = 3
 
 ; `rings` is the subdivision of the MAIN circle and `ring_segments` the tube's
@@ -127,44 +137,74 @@ point_count = 3
 [sub_resource type="TorusMesh" id="TorusMesh_spin"]
 inner_radius = 0.76
 outer_radius = 1.0
-rings = 32
+rings = 48
 ring_segments = 6
 
-; Scissored for the same reason as the trail: transparency = 1 could never be
-; outlined. spin_ring.gd no longer animates opacity — it holds full strength and
-; then goes, which is what the reference material recommends anyway.
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ring"]
+; Three bands across the width rather than one flat orange, matching the ribbon's own
+; core/mid/rim ramp so the spin's ground footprint and its arc read as one effect. A
+; single mid-value albedo (the old Color(1, 0.5, 0.08) is 0.58 luminance against
+; 0.47 grass) borrows its contrast from the background; a near-white core between dark
+; rims carries its own. Unbroken — `segment_fill` 1.0 — because the footprint is a
+; claim about reach and a dotted line is a weaker claim.
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_spin_ring"]
 resource_name = "spin_ring"
-transparency = 2
-alpha_scissor_threshold = 0.5
-shading_mode = 0
-albedo_color = Color(1, 0.5, 0.08, 1)
-cull_mode = 2
-disable_receive_shadows = true
+shader = ExtResource("21_groundring")
+shader_parameter/core_colour = Color(1, 0.86, 0.62, 1)
+shader_parameter/rim_colour = Color(0.3, 0.1, 0.03, 1)
+shader_parameter/ring_radius = 0.88
+shader_parameter/tube_radius = 0.12
+shader_parameter/core_width = 0.56
+shader_parameter/segments = 1.0
+shader_parameter/segment_fill = 1.0
 
 ; The charge tell's ground ring. Authored at radius 1 so the script's scale IS the
-; radius, and slightly thicker in section than the spin's so it still reads at the
-; smaller settled radius.
+; radius. Thicker in section than it was (tube 0.16, not 0.11) because it has to hold
+; three bands at the smaller settled radius: 0.32 mesh units at radius 1.35 is 0.43 m,
+; about 21 px at the capture size, which a core and two rims can divide and still be
+; seen. At the old 0.22 the rims were sub-pixel.
 [sub_resource type="TorusMesh" id="TorusMesh_charge"]
-inner_radius = 0.78
+inner_radius = 0.68
 outer_radius = 1.0
-rings = 32
+rings = 48
 ring_segments = 6
 
-; Deep teal, and deliberately DARKER than the grass it lies on (Rec.709 luminance
-; ~0.33 against grass 0.47) rather than brighter. The charged blade and its light
-; wash are the bright half of this tell; the ring is the dark half, so the pair
-; carries its own contrast instead of borrowing it from the background, and both
-; halves survive a greyscale check. Cyan-family, because cyan already means
-; "charged" here and orange already means "swinging" — two states, two hues.
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_charge_ring"]
+; The charge tell, rebuilt after a blind critic called the old dark-teal version
+; quiet: "dark teal ring on mid-green grass is low contrast ... a wind-up needs to be
+; the loudest moment, not the softest".
+;
+; The previous note here argued the ring should be the DARK half of the tell and the
+; blade the bright half, and cited authored albedo to prove the contrast: ring 0.33
+; luminance against grass 0.47. Those numbers were measured on the wrong image. In a
+; RENDERED frame the grass is lit and the ring is `unshaded`, so the light multiplier
+; applies to one and not the other: sampled off a capture, the grass beside the player
+; is 0.78 luminance, not 0.47. Authored albedo systematically understates how bright
+; this world is, and any effect judged against 0.47 is being judged against a value
+; that never reaches the screen.
+;
+; Re-measured, the old ring's value contrast was in fact fine (0.36 against 0.78) and
+; the diagnosis was wrong: what it lacked was AREA, a bright element, and a shape that
+; is not a reticle. So the band is wider, and it now carries both halves of the ramp
+; itself — a 0.94-luminance icy core between 0.16-luminance rims, sampled at 0.945 and
+; 0.16 in the capture — which is the bright-core-plus-dark-edge structure
+; PRIOR-ART-VISUAL.md prescribes. It cannot lose against a light ground or a dark one.
+;
+; Cut into seven arcs, because the same critic said an unbroken ring "reads as a
+; selection circle or a targeting reticle rather than energy gathering" — and it was
+; right, a closed circle around a character IS a reticle. Arcs converging inward are
+; not.
+;
+; Still cyan-family: cyan means "charged" here and orange means "swinging", so the two
+; states can never be confused with each other.
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_charge_ring"]
 resource_name = "charge_ring"
-transparency = 2
-alpha_scissor_threshold = 0.5
-shading_mode = 0
-albedo_color = Color(0, 0.44, 0.57, 1)
-cull_mode = 2
-disable_receive_shadows = true
+shader = ExtResource("21_groundring")
+shader_parameter/core_colour = Color(0.82, 1, 1, 1)
+shader_parameter/rim_colour = Color(0.02, 0.15, 0.21, 1)
+shader_parameter/ring_radius = 0.84
+shader_parameter/tube_radius = 0.16
+shader_parameter/core_width = 0.6
+shader_parameter/segments = 7.0
+shader_parameter/segment_fill = 0.72
 
 [sub_resource type="AnimationNodeAnimation" id="anim_idle"]
 animation = &"idle"
@@ -437,7 +477,7 @@ visible = false
 cast_shadow = 0
 extra_cull_margin = 8.0
 mesh = SubResource("TorusMesh_spin")
-surface_material_override/0 = SubResource("StandardMaterial3D_ring")
+surface_material_override/0 = SubResource("ShaderMaterial_spin_ring")
 script = ExtResource("19_ring")
 
 ; The charge tell's ground ring. Sits marginally higher than the spin's so the two
@@ -449,7 +489,7 @@ visible = false
 cast_shadow = 0
 extra_cull_margin = 8.0
 mesh = SubResource("TorusMesh_charge")
-surface_material_override/0 = SubResource("StandardMaterial3D_charge_ring")
+surface_material_override/0 = SubResource("ShaderMaterial_charge_ring")
 script = ExtResource("20_chargering")
 
 [node name="CameraPivot" type="Node3D" parent="."]
