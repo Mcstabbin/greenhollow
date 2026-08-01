@@ -212,13 +212,29 @@ A repo whose last commit is day one is the failure signature.
   in the opaque pipeline — `ALPHA_HASH`, or `ALPHA_SCISSOR` with a threshold.
   Corollary: **never alpha-blend or `visible`-toggle the player** for i-frames or
   flashes; it drops the character's own outline on every off phase. Toggle a tint.
-- Our outline's `normal_edge` term has **no distance attenuation** while
-  `depth_edge` does (`dd / max(dc, 0.001)`). Normal differences are
-  distance-invariant, so distant foliage emits full-strength crease lines — and
-  since the canopies sway, that hatch shimmers. Also `render_mode` includes
-  `fog_disabled`, so raising fog washes out the trees while leaving their outlines
-  pure black. Depth-attenuating the outline is the mandatory partner to any fog
-  change.
+- **The outline's two terms need attenuating by different amounts, and it is the
+  crease term that matters.** `depth_edge` was always distance-normalised
+  (`dd / max(dc, 0.001)`); `normal_edge` had no distance term at all, and normal
+  differences are distance-invariant, so distant foliage emitted full-strength
+  crease lines over ever fewer pixels until a canopy was a solid black scribble —
+  and since the canopies sway, that hatch shimmered. Measured on
+  `tools/shots/clearing` `spawn_north`: beyond 32 m, the crease term inked 30.6%
+  of pixels against the silhouette term's 16.0%. The shader now fades creases to
+  **zero** and silhouettes only to `far_silhouette` (0.6) between `fade_begin`
+  12 m and `fade_end` 40 m — distant things must keep being *things*, and their
+  silhouette is what says so. `fade_begin` has to sit above every near-field
+  measurement (player 5.2–5.8 m, props 2–8 m) because `smoothstep` returns
+  *exactly* 0 at or below its edge, which is what makes the near field
+  bit-identical rather than nearly so.
+- **`render_mode` includes `fog_disabled`**, so fog can never soften an outline;
+  before the attenuation above, raising fog washed out the trees while leaving
+  their outlines pure black. Attenuation was the mandatory partner to any fog
+  change — and once it landed, the fog change stopped being worth making.
+  Measured: `FOG_MODE_DEPTH` (begin 14, end 60, density 0.55) moved the
+  treeline/play-field contrast ratio from 1.54 to 1.43 on **one** of four
+  establishing angles and did nothing on the other three, while shifting near
+  geometry by ~2/255 because exponential fog had been very slightly lightening
+  everything. Not enough to re-author a hand-edited scene for. Tried and reverted.
 - `hint_normal_roughness_texture` is **Forward+ only** and not planned for Mobile.
   The outline pass pins the renderer.
 - **Never use `Engine.time_scale` for hitstop.** `AudioStreamPlayer` ignores it
@@ -329,10 +345,25 @@ to the code. Each of these failed a round before it was understood.
 - **State changes should converge, not appear.** A reticle that snaps on reads as
   a HUD element; one that closes onto its target over ~110 ms reads as the game
   locking on, and communicates it in a single still frame.
-- **Composition works against the action here.** The treeline is the
-  highest-contrast, most heavily outlined region of every frame, and fights
-  happen in a flat low-contrast green field below it. The eye goes to scenery.
-  Unresolved — a lighting/composition pass owes this an answer.
+- **Composition works against the action here.** The treeline was the
+  highest-contrast, most heavily outlined region of every frame, and fights happen
+  in a flat low-contrast green field below it, so the eye went to scenery.
+  Half-answered by the outline's distance attenuation: measured as luminance
+  std dev over the top 200 rows against the bottom 180, the treeline/play-field
+  contrast ratio fell from 2.46/2.57/1.87/1.90 to 1.54/1.73/1.66/1.43 across the
+  four `clearing` angles, with the play field's own figure unchanged to four
+  decimals. Still 1.4–1.7x, so the eye still drifts up; the rest is a lighting and
+  value problem, not an outline one.
+- **Not every stroke over flat ground is a distance problem, and the near-field
+  ones cannot be thresholded away.** The thin lines over unbroken lawn, and the
+  ones crossing open water, are the *crease* term firing on the terrain mesh's own
+  flat-shaded slope changes — measured at 2.3–5.3 m, i.e. inside the near field
+  that the attenuation deliberately does not touch. (Over water it is the riverbed
+  beneath: the water is `blend_mix`, so the depth and normal buffers hold what is
+  under it.) Raising `normal_sensitivity` does not separate them: those strokes
+  measure `nd` 1.29–1.33 while the character's own creases have a median `nd` of
+  1.39. Same magnitude, so any threshold that kills one kills the other. The real
+  fix is smoothing the terrain mesh's vertex normals, which is a level change.
 - **Shape carries motion; the outline cannot.** The hardest-won lesson here. An
   un-outlined effect reads as a *rendering artefact*, and an outlined, opaque,
   hard-edged one reads as a *solid prop* — two critics, two rounds, both correct.

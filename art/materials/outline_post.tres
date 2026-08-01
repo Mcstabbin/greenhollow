@@ -9,3 +9,9 @@ shader_parameter/outline_color = Color(0.05, 0.05, 0.09, 1)
 shader_parameter/thickness = 1.3
 shader_parameter/depth_sensitivity = 16.0
 shader_parameter/normal_sensitivity = 1.0
+; Distance attenuation. Every number here is measured rather than chosen by eye;
+; the shader's own uniform comments carry the measurements and the source.
+shader_parameter/fade_begin = 12.0
+shader_parameter/fade_end = 40.0
+shader_parameter/far_silhouette = 0.6
+shader_parameter/far_thickness = 1.0
