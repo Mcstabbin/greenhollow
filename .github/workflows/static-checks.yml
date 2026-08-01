@@ -1,0 +1,104 @@
+name: Checks
+
+# Rule 3 is "verify by running, not by reasoning", but until now it was enforced
+# by discipline alone across ~5,700 lines of GDScript. This runs the tooling the
+# project already has.
+#
+# Deliberately NOT here:
+#  - gdformat --diff. It would reformat essentially every file, and a whole-tree
+#    reformat is exactly the kind of diff a real regression hides inside. Worth
+#    doing, as its own isolated commit, first.
+#  - The capture harness. It needs a real window (Godot --headless has no
+#    renderer at all and off-screen rendering is still only an engine proposal),
+#    so screenshot checks stay local.
+#  - Per-file `--check-only --script` parse checks. Tried, rejected: autoloads
+#    are not instantiated when a bare script is the main loop, so every file
+#    touching GameState or Audio fails with "Identifier not found" — 14 false
+#    positives and no true ones. Running the probe SCENE compiles the same code
+#    with autoloads present, and actually exercises it.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  gdlint:
+    name: gdlint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      # Pinned to the 4.x line: gdtoolkit majors track GDScript majors, so a
+      # surprise 5.x would fail the build for reasons unrelated to our code.
+      - name: Install gdtoolkit
+        run: pip install "gdtoolkit==4.*"
+
+      # Suppressed rules and the reason for each live in .gdlintrc. addons/ is
+      # excluded there — vendored MIT code, upstream's style is not ours to fix.
+      - name: Lint
+        run: gdlint $(git ls-files '*.gd' | grep -v '^addons/')
+
+  feel:
+    name: Movement baseline
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Fetch Godot 4.7.1
+        run: |
+          curl -sSL -o godot.zip \
+            https://github.com/godotengine/godot/releases/download/4.7.1-stable/Godot_v4.7.1-stable_linux.x86_64.zip
+          unzip -q godot.zip
+          mv Godot_v4.7.1-stable_linux.x86_64 godot
+          chmod +x godot
+
+      # Global classes do not resolve until an import pass has populated the
+      # script class cache; without this, every file referencing a class_name
+      # fails to parse and it reads like a typo. Import also never runs the
+      # generators, so no committed scene is overwritten by CI.
+      - name: Import project
+        run: ./godot --headless --path . --import
+
+      # The real check. Booting the full 1,400-node level as a scene compiles
+      # everything reachable WITH autoloads, then measures how the character
+      # actually moves and compares it to a committed baseline.
+      #
+      # --fixed-fps 60 is not optional: it decouples the physics step from wall
+      # time, so a loaded CI runner cannot change the numbers.
+      - name: Movement feel has not drifted
+        run: |
+          ./godot --headless --fixed-fps 60 --path . res://tools/probe.tscn -- --suite=movement 2>&1 \
+            | tee /dev/stderr \
+            | python tools/check_baseline.py tools/baselines/movement.json
+
+      # Combat timings are still being iterated, so they are checked for running
+      # clean rather than against fixed values. Baseline them once the attack set
+      # settles. A timeout here means a feature stopped working entirely.
+      - name: Combat suite runs clean
+        run: |
+          out=$(./godot --headless --fixed-fps 60 --path . res://tools/probe.tscn -- --suite=combat 2>&1)
+          echo "$out"
+          # `if` blocks, not `grep -q X && exit 1`: a bare `A && B` list returns
+          # non-zero when A finds nothing, and this shell runs with -e, so the
+          # clean case would fail the step.
+          if echo "$out" | grep -qiE "SCRIPT ERROR|Parse Error"; then
+            echo "::error::script error in the combat suite"
+            exit 1
+          fi
+          if echo "$out" | grep -q '"timed_out": true'; then
+            echo "::error::a combat measurement timed out — a feature stopped working"
+            exit 1
+          fi
+          if ! echo "$out" | grep -q '##PROBE-END##'; then
+            echo "::error::combat suite produced no output"
+            exit 1
+          fi
+          echo "combat suite clean"

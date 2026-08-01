@@ -16,6 +16,12 @@ extends SceneTree
 
 const OUT_PATH := "res://world/rooms/greenhollow_clearing.tscn"
 const NATURE := "res://art/models/nature/%s.glb"
+
+## Shared materials, named once. These were loaded by literal path in seven
+## separate places, which is how a rename becomes a silent null far from the
+## edit. Preloaded consts also stop the linter flagging duplicated loads.
+const MAT_GRASS: Material = preload("res://art/materials/toon_grass.tres")
+const MAT_WOOD: Material = preload("res://art/materials/toon_wood.tres")
 const SEED := 20260725
 
 const HALF := 46.0          # ground extends +/- this (well past the treeline)
@@ -371,8 +377,8 @@ func build_environment() -> void:
 
 
 func build_ground() -> void:
-	var grass := load("res://art/materials/toon_grass.tres") as Material
-	var dirt := load("res://art/materials/toon_wood.tres") as Material
+	var grass := MAT_GRASS
+	var dirt := MAT_WOOD
 	var ground := Node3D.new()
 	ground.name = "Ground"
 	ground.rotation.y = RIVER_YAW
@@ -447,7 +453,7 @@ func build_mounds(world: Node) -> void:
 	g.name = "Mounds"
 	world.add_child(g, true)
 	_own(g)
-	var grass := load("res://art/materials/toon_grass.tres") as Material
+	var grass := MAT_GRASS
 	var spots := [
 		[Vector3(-14.0, 0, -14.0), 7.0, 1.5],
 		[Vector3(15.0, 0, -13.0), 6.0, 1.2],
@@ -508,7 +514,7 @@ func build_deku_tree(world: Node) -> void:
 	kcone.height = 3.0
 	kcone.radial_segments = 12
 	kmesh.mesh = kcone
-	kmesh.material_override = load("res://art/materials/toon_grass.tres") as Material
+	kmesh.material_override = MAT_GRASS
 	knoll.add_child(kmesh, true)
 	_own(kmesh)
 	var kcol := CollisionShape3D.new()
@@ -664,7 +670,7 @@ func _house(parent: Node, model: String, pos: Vector3, yaw: float, _s: float) ->
 	lintel.position = pos + dir * (radius - 0.1) + Vector3(0, 2.35, 0)
 	lintel.rotation.y = facing
 	lintel.material_override = _mat_for(
-		load("res://art/materials/toon_wood.tres") as StandardMaterial3D,
+		MAT_WOOD as StandardMaterial3D,
 		Color(0.42, 0.30, 0.20)
 	)
 	parent.add_child(lintel, true)
@@ -696,7 +702,7 @@ func _house(parent: Node, model: String, pos: Vector3, yaw: float, _s: float) ->
 	step.position = pos + dir * (radius + 0.6) + Vector3(0, 0.05, 0)
 	step.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	step.material_override = _mat_for(
-		load("res://art/materials/toon_wood.tres") as StandardMaterial3D,
+		MAT_WOOD as StandardMaterial3D,
 		Color(0.44, 0.36, 0.27)
 	)
 	parent.add_child(step, true)
@@ -759,7 +765,7 @@ func build_lookout(world: Node) -> void:
 	# Collision stays as clean boxes (reliable to walk and jump on) but they are
 	# invisible; actual rock models are stacked over them so it doesn't read as
 	# placeholder geometry.
-	var grass := load("res://art/materials/toon_grass.tres") as Material
+	var grass := MAT_GRASS
 	var base := Vector3(-17.0, 0, 13.0)
 	# offset, top height, footprint
 	var terraces := [

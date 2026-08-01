@@ -1,0 +1,43 @@
+# gdlint configuration for Greenhollow.
+#
+# Every deviation from gdtoolkit's defaults is listed with a reason. Widening a
+# limit to silence a warning without saying why is how a linter stops meaning
+# anything.
+
+disable:
+  # DEBT, not a disagreement. This enforces the official style guide's member
+  # order (signals -> enums -> consts -> exports -> public -> private -> onready)
+  # and we violate it in 27 places, mostly @onready vars sitting next to the
+  # plain vars they relate to rather than in their own block at the bottom.
+  # Turning it on means reordering player.gd and build_combat_anims.gd, which
+  # are actively being edited. Re-enable once combat has settled, then fix in
+  # one pass rather than dribbling churn through files under change.
+  - class-definitions-order
+
+# tools/build_clearing.gd is 1074 lines and legitimately so: it is a generator
+# whose whole job is verbose declarative placement, and README.md already says it
+# gets retired once the level is edited by hand. 1200 gives it room without
+# licensing a second file that size.
+max-file-lines: 1200
+
+# 100 is tight for GDScript once typed signatures, @export docstrings and
+# node paths are in play. 120 still fits a split editor pane.
+max-line-length: 120
+
+# A RATCHET, not headroom. player.gd has exactly 24 public methods today, so this
+# is set to 24: the file can only get better, and the 25th fails CI.
+#
+# The default of 20 is right and we are over it. Two independent signals agree on
+# the fix: this linter, and a research pass into how strong Godot 3D projects
+# structure controllers. Three of the 24 (play_anim, update_locomotion_anim,
+# get_clip_length) belong behind a character_skin.gd facade so that no gameplay
+# code holds a "parameters/..." AnimationTree string -- a convention shared by
+# four separate well-starred repos. Another eight are probe and debug readouts.
+# Lower this number as those move; never raise it.
+max-public-methods: 24
+
+excluded_directories:
+  - .git
+  # Vendored, MIT, upstream's style is upstream's business. Linting a dependency
+  # produces noise we are not allowed to fix.
+  - addons

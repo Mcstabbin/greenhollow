@@ -1,0 +1,17 @@
+{
+  "_comment": "Known-good feel. CI asserts tools/probe.tscn --suite=movement against these, so a change to how the character moves cannot land silently. Changing feel is allowed; changing it ACCIDENTALLY is not, so a real change means editing this file in the same commit and saying why. Measured at physics_hz 60 with --fixed-fps 60; the tolerance is one physics frame (16.667 ms) where a value is time, and a hair over float noise where it is not.",
+  "physics_hz": 60,
+  "expect": {
+    "accel_to_max_speed":    { "value": 100.0,    "tolerance": 16.667, "unit": "ms" },
+    "max_speed_actual":      { "value": 6.0,      "tolerance": 0.05,   "unit": "m/s" },
+    "decel_to_stop":         { "value": 133.333,  "tolerance": 16.667, "unit": "ms" },
+    "jump_apex_height":      { "value": 0.492,    "tolerance": 0.02,   "unit": "m" },
+    "jump_airtime":          { "value": 533.333,  "tolerance": 16.667, "unit": "ms" },
+    "jump_apex_height_held": { "value": 1.648,    "tolerance": 0.02,   "unit": "m" },
+    "jump_airtime_held":     { "value": 1066.667, "tolerance": 16.667, "unit": "ms" }
+  },
+  "_notes": {
+    "jump_apex_height_held": "Should track the player's exported jump_height (1.6) closely. If this drifts toward jump_apex_height, variable jump height has broken.",
+    "jump_apex_height": "A tapped jump. Must stay clearly BELOW the held value or the jump cut is doing nothing."
+  }
+}
