@@ -64,6 +64,7 @@ func _ready() -> void:
 		return
 	_pivot = _player.get_node_or_null("CameraPivot") as Node3D
 	_arm = _player.get_node_or_null("CameraPivot/SpringArm3D") as SpringArm3D
+	_freeze_pickups()
 	if _arm != null:
 		_default_pitch = _arm.rotation.x
 		_default_spring = _arm.spring_length
@@ -178,6 +179,9 @@ func _run_shot(shot: Dictionary) -> void:
 	if not matched:
 		_failures.append("%s: never reached %s within %d frames" % [name, when, limit])
 
+	# Immediately before the frame is taken, not after warmup: the action itself is
+	# what moves the camera, so locking any earlier does not help.
+	_lock_camera(shot)
 	await _save(name)
 	_check_expectations(shot, name)
 	_release_all()
@@ -204,6 +208,53 @@ func _save(name: String) -> void:
 		"state": state,
 	})
 	print("capture: wrote %s (%dx%d) %s" % [path, image.get_width(), image.get_height(), state])
+
+
+## Stop pickups from triggering, without hiding them.
+##
+## Shots teleport the player around the level, and anything they land on gets
+## collected — so a rupee present in one frame of a matched pair was gone by the
+## other. A blind critic caught it: "the green gem pickups differ, four versus
+## two. Something was collected or despawned between takes." That is fatal to a
+## forced-choice test whose entire premise is that the action is the only variable.
+##
+## `monitoring = false` rather than freeing or hiding them: they must still be in
+## frame, because the clutter is part of what an effect has to read against.
+func _freeze_pickups() -> void:
+	var frozen := 0
+	for node in _level.find_children("*", "Area3D", true, false):
+		var area := node as Area3D
+		# Leave the player's own areas alone — that is where the sword hitbox and
+		# the interact field live, and disabling those changes behaviour under test.
+		if _player.is_ancestor_of(area):
+			continue
+		if area.monitoring:
+			area.monitoring = false
+			frozen += 1
+	print("capture: froze %d world Area3D(s) so pickups cannot change between shots" % frozen)
+
+
+## Snap the camera to exactly where it belongs, killing the lag.
+##
+## The pivot is `top_level` and chases the player with a lerp, so an action that
+## moves the character leaves the camera somewhere different from where an idle
+## frame leaves it. A critic caught that too: "the camera is not the same, it sits
+## lower and closer." For a comparison test identical framing matters more than
+## authentic camera lag, so a shot can ask for the lag to be removed.
+##
+## Deliberately opt-in: `combat.json` wants the real lagging camera, because that
+## is what a player sees. `legibility.json` wants determinism.
+func _lock_camera(shot: Dictionary) -> void:
+	if not bool(shot.get("lock_camera", false)) or _pivot == null:
+		return
+	var height := 1.1
+	if _player.get("camera_target_height") != null:
+		height = float(_player.get("camera_target_height"))
+	_pivot.global_position = _player.global_position + Vector3.UP * height
+	_pivot.rotation.y = deg_to_rad(float(shot.get("camera_yaw_deg", 0.0)))
+	if _arm != null:
+		_arm.rotation.x = (deg_to_rad(float(shot["camera_pitch_deg"]))
+			if shot.has("camera_pitch_deg") else _default_pitch)
 
 
 ## Is the player in the state a `capture_when` block is waiting for?

@@ -1,5 +1,5 @@
 {
-  "_comment": "Forced-choice legibility set (CRITIC.md Mode 4). SEVEN MATCHED PAIRS: each of seven positions gives exactly one idle and one action frame from the identical gameplay camera, so position carries zero information about which class a frame belongs to. A first attempt used one position for all twelve and produced six near-identical idle frames, which a critic can spot and use to infer the control without looking at the character. Every shot uses capture_when (advance until the player really is in that state) rather than capture_at (hand-tuned frame arithmetic, which silently broke when an 8-frame settle was added upstream), and every shot also declares expect_* so capture.gd fails the run on any mismatch. An earlier version of this set silently captured four 'idle' frames of a walking character. pair7 was added to cover a RENDERING FAULT rather than an animation: see its note.",
+  "_comment": "Forced-choice legibility set (CRITIC.md Mode 4). SEVEN MATCHED PAIRS: each of seven positions gives exactly one idle and one action frame from the identical gameplay camera, so position carries zero information about which class a frame belongs to. A first attempt used one position for all twelve and produced six near-identical idle frames, which a critic can spot and use to infer the control without looking at the character. Every shot uses capture_when (advance until the player really is in that state) rather than capture_at (hand-tuned frame arithmetic, which silently broke when an 8-frame settle was added upstream), and every shot also declares expect_* so capture.gd fails the run on any mismatch. An earlier version of this set silently captured four 'idle' frames of a walking character. pair7 was added to cover a RENDERING FAULT rather than an animation: see its note. Every shot sets lock_camera: the camera pivot is top_level and chases the player with a lerp, so an action that moves the character leaves the camera somewhere an idle frame does not. A blind critic caught exactly that ('the camera is not the same, it sits lower and closer'). capture.gd also freezes world Area3Ds for these runs, because teleporting the player between shots COLLECTED rupees and a matched pair ended up with different pickups in frame - also caught by a critic. Both were silent, and both broke the premise that the action is the only variable.",
   "shots": [
     {
       "_note": "CONTROL for this position. Waits until the player genuinely IS idle rather than assuming a frame count, so a shot that inherited a fall or a slide self-corrects instead of quietly captioning a walk cycle as idle.",
@@ -17,7 +17,8 @@
       },
       "capture_offset": 4,
       "expect_state": "Idle",
-      "expect_clip": "idle"
+      "expect_clip": "idle",
+      "lock_camera": true
     },
     {
       "_note": "slash_a wind-up: blade cocked above the shoulder.",
@@ -40,7 +41,8 @@
         "clip": "slash_a"
       },
       "expect_state": "Attack",
-      "expect_clip": "slash_a"
+      "expect_clip": "slash_a",
+      "lock_camera": true
     },
     {
       "_note": "CONTROL for this position. Waits until the player genuinely IS idle rather than assuming a frame count, so a shot that inherited a fall or a slide self-corrects instead of quietly captioning a walk cycle as idle.",
@@ -58,7 +60,8 @@
       },
       "capture_offset": 4,
       "expect_state": "Idle",
-      "expect_clip": "idle"
+      "expect_clip": "idle",
+      "lock_camera": true
     },
     {
       "_note": "slash_a with the hitbox live.",
@@ -83,7 +86,8 @@
       },
       "expect_state": "Attack",
       "expect_clip": "slash_a",
-      "expect_live": true
+      "expect_live": true,
+      "lock_camera": true
     },
     {
       "_note": "CONTROL for this position. Waits until the player genuinely IS idle rather than assuming a frame count, so a shot that inherited a fall or a slide self-corrects instead of quietly captioning a walk cycle as idle.",
@@ -101,7 +105,8 @@
       },
       "capture_offset": 4,
       "expect_state": "Idle",
-      "expect_clip": "idle"
+      "expect_clip": "idle",
+      "lock_camera": true
     },
     {
       "_note": "slash_a late in the live window - flagged marginal by its own builder, and the frame this test exists to settle.",
@@ -126,7 +131,8 @@
       },
       "capture_offset": 4,
       "expect_state": "Attack",
-      "expect_clip": "slash_a"
+      "expect_clip": "slash_a",
+      "lock_camera": true
     },
     {
       "_note": "CONTROL for this position. Waits until the player genuinely IS idle rather than assuming a frame count, so a shot that inherited a fall or a slide self-corrects instead of quietly captioning a walk cycle as idle.",
@@ -144,7 +150,8 @@
       },
       "capture_offset": 4,
       "expect_state": "Idle",
-      "expect_clip": "idle"
+      "expect_clip": "idle",
+      "lock_camera": true
     },
     {
       "_note": "slash_b live, the chained follow-up. Opposite screen direction to slash_a.",
@@ -173,7 +180,8 @@
         "live": true
       },
       "expect_state": "Attack",
-      "expect_clip": "slash_b"
+      "expect_clip": "slash_b",
+      "lock_camera": true
     },
     {
       "_note": "CONTROL for this position. Waits until the player genuinely IS idle rather than assuming a frame count, so a shot that inherited a fall or a slide self-corrects instead of quietly captioning a walk cycle as idle.",
@@ -191,10 +199,11 @@
       },
       "capture_offset": 4,
       "expect_state": "Idle",
-      "expect_clip": "idle"
+      "expect_clip": "idle",
+      "lock_camera": true
     },
     {
-      "_note": "Charge held past the 1067 ms threshold. This was the weakest frame in the set and the only low-confidence call a critic made: charging runs inside the Idle state, so the pose WAS the idle pose and the only differences were the blade's colour and a soft ground glow — 'if the glow had been absent I would have called it IDLE with confidence 5 and been wrong'. There are now two hard-edged cues: a held anticipation pose (the `charge` clip, which is why expect_clip is no longer `idle`) and an outlined teal ground ring that closes inward. capture_offset waits 8 frames so the ring has finished converging — the charge is a HELD state, so any frame of it is representative, and the first frame of a 110 ms convergence is the least so.",
+      "_note": "Charge held past the 1067 ms threshold. This was the weakest frame in the set and the only low-confidence call a critic made: charging runs inside the Idle state, so the pose WAS the idle pose and the only differences were the blade's colour and a soft ground glow \u2014 'if the glow had been absent I would have called it IDLE with confidence 5 and been wrong'. There are now two hard-edged cues: a held anticipation pose (the `charge` clip, which is why expect_clip is no longer `idle`) and an outlined teal ground ring that closes inward. capture_offset waits 8 frames so the ring has finished converging \u2014 the charge is a HELD state, so any frame of it is representative, and the first frame of a 110 ms convergence is the least so.",
       "name": "pair5_action",
       "player_position": [
         16,
@@ -214,7 +223,8 @@
       },
       "capture_offset": 8,
       "expect_state": "Idle",
-      "expect_clip": "charge"
+      "expect_clip": "charge",
+      "lock_camera": true
     },
     {
       "_note": "CONTROL for this position. Waits until the player genuinely IS idle rather than assuming a frame count, so a shot that inherited a fall or a slide self-corrects instead of quietly captioning a walk cycle as idle.",
@@ -232,7 +242,8 @@
       },
       "capture_offset": 4,
       "expect_state": "Idle",
-      "expect_clip": "idle"
+      "expect_clip": "idle",
+      "lock_camera": true
     },
     {
       "_note": "Spin, ring at radius.",
@@ -257,7 +268,8 @@
       },
       "capture_offset": 6,
       "expect_state": "Attack",
-      "expect_clip": "spin_attack"
+      "expect_clip": "spin_attack",
+      "lock_camera": true
     },
     {
       "_note": "CONTROL for this position. Waits until the player genuinely IS idle rather than assuming a frame count, so a shot that inherited a fall or a slide self-corrects instead of quietly captioning a walk cycle as idle.",
@@ -275,10 +287,11 @@
       },
       "capture_offset": 4,
       "expect_state": "Idle",
-      "expect_clip": "idle"
+      "expect_clip": "idle",
+      "lock_camera": true
     },
     {
-      "_note": "REGRESSION COVER for a rendering fault, not just another action frame. A spin on the river bank, where the expanding ground ring grows out over the water. A critic reported 'three or four thin black concentric arcs on the water surface with nothing inside them ... nobody would think spin attack; they would think the water is broken', and it was this: the ring is OPAQUE so it writes depth, the water is blend_mix so it erases the ring's fill without writing depth, and the outline pass — which reads the pre-transparent depth buffer — contoured a shape that was no longer visible. Diagnosed by freezing the frame and hiding one node at a time; with the ring hidden every arc vanished. actors/player/water_line.gd holds the fix and the full write-up. This pair exists so the fault cannot come back unnoticed: pair6 happens to be waterside too, but one position is a coincidence, two is coverage. The bank here sits BELOW the river surface, which is exactly the case a constant height offset cannot handle.",
+      "_note": "REGRESSION COVER for a rendering fault, not just another action frame. A spin on the river bank, where the expanding ground ring grows out over the water. A critic reported 'three or four thin black concentric arcs on the water surface with nothing inside them ... nobody would think spin attack; they would think the water is broken', and it was this: the ring is OPAQUE so it writes depth, the water is blend_mix so it erases the ring's fill without writing depth, and the outline pass \u2014 which reads the pre-transparent depth buffer \u2014 contoured a shape that was no longer visible. Diagnosed by freezing the frame and hiding one node at a time; with the ring hidden every arc vanished. actors/player/water_line.gd holds the fix and the full write-up. This pair exists so the fault cannot come back unnoticed: pair6 happens to be waterside too, but one position is a coincidence, two is coverage. The bank here sits BELOW the river surface, which is exactly the case a constant height offset cannot handle.",
       "name": "pair7_action",
       "player_position": [
         11,
@@ -300,7 +313,8 @@
       },
       "capture_offset": 12,
       "expect_state": "Attack",
-      "expect_clip": "spin_attack"
+      "expect_clip": "spin_attack",
+      "lock_camera": true
     }
   ]
 }
