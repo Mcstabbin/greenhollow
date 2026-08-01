@@ -1,0 +1,1093 @@
+- generic [active] [ref=e1]:
+  - navigation [ref=e2]:
+    - generic [ref=e3]:
+      - link [ref=e4] [cursor=pointer]:
+        - /url: /
+        - img "Godot Asset Store" [ref=e5]
+      - link "(Beta)":
+        - /url: /roadmap
+        - img "(Beta)" [ref=e6] [cursor=pointer]
+      - textbox "Search" [ref=e11]
+      - generic [ref=e12]:
+        - link "Upload Asset" [ref=e13] [cursor=pointer]:
+          - /url: /asset/new/
+        - link [ref=e15] [cursor=pointer]:
+          - /url: /login
+          - paragraph [ref=e16]: Log in
+          - img "User" [ref=e17]
+  - main [ref=e18]:
+    - generic [ref=e20]:
+      - generic [ref=e21]: slide 1 of 8
+      - generic [ref=e23]:
+        - generic [ref=e24]:
+          - link:
+            - /url: /asset/ramokz/phantom-camera/
+          - generic [ref=e25] [cursor=pointer]:
+            - link [ref=e26]:
+              - /url: /asset/ramokz/phantom-camera/
+            - generic [ref=e28]:
+              - link [ref=e29]:
+                - /url: /asset/ramokz/phantom-camera/
+                - heading "Phantom Camera" [level=2] [ref=e30]
+              - link "by Ramokz" [ref=e31]:
+                - /url: /publisher/ramokz/
+              - paragraph [ref=e32]: A Camera addon for Godot 4. Inspired by Cinemachine.
+              - separator [ref=e33]
+              - generic [ref=e34]:
+                - text: "Rating:"
+                - link "61" [ref=e35]:
+                  - /url: /asset/ramokz/phantom-camera/#reviews
+              - paragraph [ref=e38]:
+                - text: "License:"
+                - link "MIT" [ref=e39]:
+                  - /url: https://choosealicense.com/licenses/mit/
+              - separator [ref=e40]
+              - generic [ref=e41]:
+                - link "icon 3D" [ref=e42]:
+                  - /url: /search/?query=%233d
+                  - img "icon"
+                  - text: 3D
+                - link "icon 2D" [ref=e43]:
+                  - /url: /search/?query=%232d
+                  - img "icon"
+                  - text: 2D
+                - link "Camera" [ref=e44]:
+                  - /url: /search/?query=%23camera
+        - generic [ref=e46] [cursor=pointer]:
+          - link [ref=e47]:
+            - /url: /asset/holonproduction/kanban-tasks/
+          - generic [ref=e49]:
+            - link [ref=e50]:
+              - /url: /asset/holonproduction/kanban-tasks/
+              - heading [level=2] [ref=e51]: Kanban Tasks - Todo Manager
+            - link [ref=e52]:
+              - /url: /publisher/holonproduction/
+              - text: by HolonProduction
+            - paragraph [ref=e53]: A minimalistic kanban board addon for Godot.
+            - separator [ref=e54]
+            - generic [ref=e55]:
+              - text: "Rating:"
+              - link [ref=e56]:
+                - /url: /asset/holonproduction/kanban-tasks/#reviews
+                - text: "24"
+            - paragraph [ref=e59]:
+              - text: "License:"
+              - link [ref=e60]:
+                - /url: https://choosealicense.com/licenses/mit/
+                - text: MIT
+            - separator [ref=e61]
+            - generic [ref=e62]:
+              - link [ref=e63]:
+                - /url: /search/?query=%23kanban
+                - text: Kanban
+              - link [ref=e64]:
+                - /url: /search/?query=%23todo
+                - text: To-do
+              - link [ref=e65]:
+                - /url: /search/?query=%23productivity
+                - text: Productivity
+              - link [ref=e66]:
+                - /url: /search/?query=%23tool
+                - text: Tool
+        - generic [ref=e68] [cursor=pointer]:
+          - link [ref=e69]:
+            - /url: /asset/elliotfontaine/yard-yet-another-resource-database/
+          - generic [ref=e71]:
+            - link [ref=e72]:
+              - /url: /asset/elliotfontaine/yard-yet-another-resource-database/
+              - heading [level=2] [ref=e73]: YARD — Yet Another Resource Database
+            - link [ref=e74]:
+              - /url: /publisher/elliotfontaine/
+              - text: by Elliot Fontaine
+            - paragraph [ref=e75]: YARD is an editor plugin for Godot to manage resources and query them at runtime, with a table view in the editor as the cherry on top.
+            - separator [ref=e76]
+            - generic [ref=e77]:
+              - text: "Rating:"
+              - link [ref=e78]:
+                - /url: /asset/elliotfontaine/yard-yet-another-resource-database/#reviews
+                - text: "15"
+            - paragraph [ref=e81]:
+              - text: "License:"
+              - link [ref=e82]:
+                - /url: https://choosealicense.com/licenses/mit/
+                - text: MIT
+            - separator [ref=e83]
+            - generic [ref=e84]:
+              - link [ref=e85]:
+                - /url: /search/?query=%23resource
+                - text: Resource
+              - link [ref=e86]:
+                - /url: /search/?query=%23resourcemanagement
+                - text: Resource Management
+              - link [ref=e87]:
+                - /url: /search/?query=%23database
+                - text: Database
+              - link [ref=e88]:
+                - /url: /search/?query=%23tool
+                - text: Tool
+              - link [ref=e89]:
+                - /url: /search/?query=%23datamanagement
+                - text: Data Management
+        - generic [ref=e91] [cursor=pointer]:
+          - link [ref=e92]:
+            - /url: /asset/theduckcow/road-generator/
+          - generic [ref=e94]:
+            - link [ref=e95]:
+              - /url: /asset/theduckcow/road-generator/
+              - heading [level=2] [ref=e96]: Road Generator
+            - link [ref=e97]:
+              - /url: /publisher/theduckcow/
+              - text: by TheDuckCow
+            - paragraph [ref=e98]: Plugin to create procedural 3D roads, streets, and highways complete with intersections, path-follow lanes, and custom mesh support.
+            - separator [ref=e99]
+            - generic [ref=e100]:
+              - text: "Rating:"
+              - link [ref=e101]:
+                - /url: /asset/theduckcow/road-generator/#reviews
+                - text: "15"
+            - paragraph [ref=e104]:
+              - text: "License:"
+              - link [ref=e105]:
+                - /url: https://choosealicense.com/licenses/mit/
+                - text: MIT
+            - separator [ref=e106]
+            - generic [ref=e107]:
+              - link [ref=e108]:
+                - /url: /search/?query=%233d
+                - text: 3D
+              - link [ref=e109]:
+                - /url: /search/?query=%23procedural
+                - text: Procedural
+              - link [ref=e110]:
+                - /url: /search/?query=%23road
+                - text: Road
+              - link [ref=e111]:
+                - /url: /search/?query=%23street
+                - text: Street
+              - link [ref=e112]:
+                - /url: /search/?query=%23highway
+                - text: Highway
+        - generic [ref=e114] [cursor=pointer]:
+          - link [ref=e115]:
+            - /url: /asset/tokisangames/terrain3d/
+          - generic [ref=e117]:
+            - link [ref=e118]:
+              - /url: /asset/tokisangames/terrain3d/
+              - heading [level=2] [ref=e119]: Terrain3D
+            - link [ref=e120]:
+              - /url: /publisher/tokisangames/
+              - text: by Tokisan Games
+            - paragraph [ref=e121]: A high performance, editable terrain system for Godot 4.
+            - separator [ref=e122]
+            - generic [ref=e123]:
+              - text: "Rating:"
+              - link [ref=e124]:
+                - /url: /asset/tokisangames/terrain3d/#reviews
+                - text: "40"
+            - paragraph [ref=e127]:
+              - text: "License:"
+              - link [ref=e128]:
+                - /url: https://choosealicense.com/licenses/mit/
+                - text: MIT
+            - separator [ref=e129]
+            - generic [ref=e130]:
+              - link [ref=e131]:
+                - /url: /search/?query=%233d
+                - text: 3D
+              - link [ref=e132]:
+                - /url: /search/?query=%23terrain
+                - text: Terrain
+              - link [ref=e133]:
+                - /url: /search/?query=%23heightmap
+                - text: Heightmap
+              - link [ref=e134]:
+                - /url: /search/?query=%23cplusplus
+                - text: C++
+              - link [ref=e135]:
+                - /url: /search/?query=%23environment
+                - text: Environment
+        - generic [ref=e137] [cursor=pointer]:
+          - link [ref=e138]:
+            - /url: /asset/godotsteam/godotsteam-gdextension/
+          - generic [ref=e140]:
+            - link [ref=e141]:
+              - /url: /asset/godotsteam/godotsteam-gdextension/
+              - heading [level=2] [ref=e142]: GodotSteam GDExtension
+            - link [ref=e143]:
+              - /url: /publisher/godotsteam/
+              - text: by GodotSteam
+            - paragraph [ref=e144]: An ecosystem of tools for Godot Engine and Valve's Steam. For Linux, Mac, and Windows.
+            - separator [ref=e145]
+            - generic [ref=e146]:
+              - text: "Rating:"
+              - link [ref=e147]:
+                - /url: /asset/godotsteam/godotsteam-gdextension/#reviews
+                - text: "32"
+            - paragraph [ref=e150]:
+              - text: "License:"
+              - link [ref=e151]:
+                - /url: https://choosealicense.com/licenses/mit/
+                - text: MIT
+            - separator [ref=e152]
+            - generic [ref=e153]:
+              - link [ref=e154]:
+                - /url: /search/?query=%23steam
+                - text: Steam
+              - link [ref=e155]:
+                - /url: /search/?query=%23sdk
+                - text: SDK
+              - link [ref=e156]:
+                - /url: /search/?query=%23valve
+                - text: Valve
+        - generic [ref=e158] [cursor=pointer]:
+          - link [ref=e159]:
+            - /url: /asset/nathanhoad/dialogue-manager/
+          - generic [ref=e161]:
+            - link [ref=e162]:
+              - /url: /asset/nathanhoad/dialogue-manager/
+              - heading [level=2] [ref=e163]: Dialogue Manager
+            - link [ref=e164]:
+              - /url: /publisher/nathanhoad/
+              - text: by Nathan Hoad
+            - paragraph [ref=e165]: A powerful non-linear dialogue editor and runtime for Godot.
+            - separator [ref=e166]
+            - generic [ref=e167]:
+              - text: "Rating:"
+              - link [ref=e168]:
+                - /url: /asset/nathanhoad/dialogue-manager/#reviews
+                - text: "49"
+            - paragraph [ref=e171]:
+              - text: "License:"
+              - link [ref=e172]:
+                - /url: https://choosealicense.com/licenses/mit/
+                - text: MIT
+            - separator [ref=e173]
+            - link [ref=e175]:
+              - /url: /search/?query=%23dialogue
+              - text: Dialogue
+        - generic [ref=e177] [cursor=pointer]:
+          - link [ref=e178]:
+            - /url: /asset/alfredbaudisch/vertex-studio/
+          - generic [ref=e180]:
+            - link [ref=e181]:
+              - /url: /asset/alfredbaudisch/vertex-studio/
+              - heading [level=2] [ref=e182]: Vertex Studio
+            - link [ref=e183]:
+              - /url: /publisher/alfredbaudisch/
+              - text: by Alfred Reinold Baudisch
+            - paragraph [ref=e184]: A complete solution to edit, manage and paint vertex colors and vertex normals of 3D meshes in Godot.
+            - separator [ref=e185]
+            - generic [ref=e186]:
+              - text: "Rating:"
+              - link [ref=e187]:
+                - /url: /asset/alfredbaudisch/vertex-studio/#reviews
+                - text: "5"
+            - paragraph [ref=e190]:
+              - text: "License:"
+              - link [ref=e191]:
+                - /url: https://alfredbaudisch.github.io/godot-vertex-studio-docs/license.html
+                - text: Custom Source-Available License
+            - separator [ref=e192]
+            - generic [ref=e193]:
+              - link [ref=e194]:
+                - /url: /search/?query=%233d
+                - text: 3D
+              - link [ref=e195]:
+                - /url: /search/?query=%23mesh
+                - text: Mesh
+              - link [ref=e196]:
+                - /url: /search/?query=%23vertex
+                - text: Vertex
+              - link [ref=e197]:
+                - /url: /search/?query=%23painting
+                - text: Painting
+              - link [ref=e198]:
+                - /url: /search/?query=%23vertexcolor
+                - text: Vertex Color
+        - generic [ref=e200] [cursor=pointer]:
+          - link [ref=e201]:
+            - /url: /asset/ramokz/phantom-camera/
+          - generic [ref=e203]:
+            - link [ref=e204]:
+              - /url: /asset/ramokz/phantom-camera/
+              - heading [level=2] [ref=e205]: Phantom Camera
+            - link [ref=e206]:
+              - /url: /publisher/ramokz/
+              - text: by Ramokz
+            - paragraph [ref=e207]: A Camera addon for Godot 4. Inspired by Cinemachine.
+            - separator [ref=e208]
+            - generic [ref=e209]:
+              - text: "Rating:"
+              - link [ref=e210]:
+                - /url: /asset/ramokz/phantom-camera/#reviews
+                - text: "61"
+            - paragraph [ref=e213]:
+              - text: "License:"
+              - link [ref=e214]:
+                - /url: https://choosealicense.com/licenses/mit/
+                - text: MIT
+            - separator [ref=e215]
+            - generic [ref=e216]:
+              - link [ref=e217]:
+                - /url: /search/?query=%233d
+                - text: 3D
+              - link [ref=e218]:
+                - /url: /search/?query=%232d
+                - text: 2D
+              - link [ref=e219]:
+                - /url: /search/?query=%23camera
+                - text: Camera
+      - generic "Carousel Pagination" [ref=e220]:
+        - button "Carousel Page 1 (Current Slide)" [ref=e221] [cursor=pointer]
+        - button "Carousel Page 2" [ref=e222] [cursor=pointer]
+        - button "Carousel Page 3" [ref=e223] [cursor=pointer]
+        - button "Carousel Page 4" [ref=e224] [cursor=pointer]
+        - button "Carousel Page 5" [ref=e225] [cursor=pointer]
+        - button "Carousel Page 6" [ref=e226] [cursor=pointer]
+        - button "Carousel Page 7" [ref=e227] [cursor=pointer]
+        - button "Carousel Page 8" [ref=e228] [cursor=pointer]
+    - generic [ref=e230]:
+      - link "icon 3D" [ref=e231] [cursor=pointer]:
+        - /url: /search/?query=%233d
+        - img "icon"
+        - text: 3D
+      - link "icon 2D" [ref=e232] [cursor=pointer]:
+        - /url: /search/?query=%232d
+        - img "icon"
+        - text: 2D
+      - link "icon Audio" [ref=e233] [cursor=pointer]:
+        - /url: /search/?query=%23audio
+        - img "icon"
+        - text: Audio
+      - link "Template" [ref=e234] [cursor=pointer]:
+        - /url: /search/?query=%23template
+      - link "icon VFX" [ref=e235] [cursor=pointer]:
+        - /url: /search/?query=%23vfx
+        - img "icon"
+        - text: VFX
+    - paragraph [ref=e237]:
+      - text: The Asset Store is being developed and is currently in
+      - strong [ref=e238]: beta
+      - text: . If you would like to know the latest changes visit our
+      - link "changelog" [ref=e239] [cursor=pointer]:
+        - /url: /changelog
+      - text: . For our future plans, visit our
+      - link "roadmap" [ref=e240] [cursor=pointer]:
+        - /url: /roadmap
+      - text: .
+    - generic [ref=e241]:
+      - generic [ref=e242]:
+        - heading "New Arrivals" [level=2] [ref=e243]
+        - link "View all →" [ref=e244] [cursor=pointer]:
+          - /url: /search/?sort=created_desc
+      - generic [ref=e245]:
+        - generic [ref=e246]:
+          - link [ref=e247] [cursor=pointer]:
+            - /url: /asset/tobias-lawrenz/filesystem-dock-tooltips/
+            - img "Filesystem Dock Tooltips" [ref=e249]
+          - generic [ref=e250]:
+            - link [ref=e251] [cursor=pointer]:
+              - /url: /asset/tobias-lawrenz/filesystem-dock-tooltips/
+              - heading "Filesystem Dock Tooltips" [level=2] [ref=e252]
+            - link "0" [ref=e254] [cursor=pointer]:
+              - /url: /asset/tobias-lawrenz/filesystem-dock-tooltips/#reviews
+            - link "Tobias Lawrenz" [ref=e257] [cursor=pointer]:
+              - /url: /publisher/tobias-lawrenz/
+            - generic [ref=e258]: FREE
+          - generic [ref=e259]:
+            - link "GDScript" [ref=e260] [cursor=pointer]:
+              - /url: /search/?query=%23gdscript
+            - link "Utility" [ref=e261] [cursor=pointer]:
+              - /url: /search/?query=%23utility
+            - link "Filesystem" [ref=e262] [cursor=pointer]:
+              - /url: /search/?query=%23filesystem
+            - link "Documentation" [ref=e263] [cursor=pointer]:
+              - /url: /search/?query=%23documentation
+            - link "Helper" [ref=e264] [cursor=pointer]:
+              - /url: /search/?query=%23helper
+        - generic [ref=e265]:
+          - link [ref=e266] [cursor=pointer]:
+            - /url: /asset/gotoandplay/smartfoxserver-3-spacewar-2/
+            - img "SpaceWar²" [ref=e268]
+          - generic [ref=e269]:
+            - link [ref=e270] [cursor=pointer]:
+              - /url: /asset/gotoandplay/smartfoxserver-3-spacewar-2/
+              - heading "SpaceWar²" [level=2] [ref=e271]
+            - link "0" [ref=e273] [cursor=pointer]:
+              - /url: /asset/gotoandplay/smartfoxserver-3-spacewar-2/#reviews
+            - link "gotoAndPlay()" [ref=e276] [cursor=pointer]:
+              - /url: /publisher/gotoandplay/
+            - generic [ref=e277]: FREE
+          - generic [ref=e278]:
+            - link "C#" [ref=e279] [cursor=pointer]:
+              - /url: /search/?query=%23csharp
+            - link "icon 2D" [ref=e280] [cursor=pointer]:
+              - /url: /search/?query=%232d
+              - img "icon"
+              - text: 2D
+            - link "Multiplayer" [ref=e281] [cursor=pointer]:
+              - /url: /search/?query=%23multiplayer
+            - link "Networking" [ref=e282] [cursor=pointer]:
+              - /url: /search/?query=%23networking
+            - link "Realtime" [ref=e283] [cursor=pointer]:
+              - /url: /search/?query=%23realtime
+        - generic [ref=e284]:
+          - link [ref=e285] [cursor=pointer]:
+            - /url: /asset/dnisachixen/calcunow/
+            - img "Calcunow - Quick Calculator" [ref=e287]
+          - generic [ref=e288]:
+            - link [ref=e289] [cursor=pointer]:
+              - /url: /asset/dnisachixen/calcunow/
+              - heading "Calcunow - Quick Calculator" [level=2] [ref=e290]
+            - link "0" [ref=e292] [cursor=pointer]:
+              - /url: /asset/dnisachixen/calcunow/#reviews
+            - link "dnisachixen" [ref=e295] [cursor=pointer]:
+              - /url: /publisher/dnisachixen/
+            - generic [ref=e296]: FREE
+          - link "icon Tool" [ref=e298] [cursor=pointer]:
+            - /url: /search/?query=%23tool
+            - img "icon"
+            - text: Tool
+        - generic [ref=e299]:
+          - link [ref=e300] [cursor=pointer]:
+            - /url: /asset/shrewd-shepherd-audio/fantasy-music-package-essentials/
+            - img "Fantasy Music Package - Essentials" [ref=e302]
+          - generic [ref=e303]:
+            - link [ref=e304] [cursor=pointer]:
+              - /url: /asset/shrewd-shepherd-audio/fantasy-music-package-essentials/
+              - heading "Fantasy Music Package - Essentials" [level=2] [ref=e305]
+            - link "0" [ref=e307] [cursor=pointer]:
+              - /url: /asset/shrewd-shepherd-audio/fantasy-music-package-essentials/#reviews
+            - link "Shrewd Shepherd Audio" [ref=e310] [cursor=pointer]:
+              - /url: /publisher/shrewd-shepherd-audio/
+            - generic [ref=e311]: FREE
+          - generic [ref=e312]:
+            - link "Music" [ref=e313] [cursor=pointer]:
+              - /url: /search/?query=%23music
+            - link "Loops" [ref=e314] [cursor=pointer]:
+              - /url: /search/?query=%23loops
+            - link "NoAI" [ref=e315] [cursor=pointer]:
+              - /url: /search/?query=%23noai
+            - link "Fantasy Music" [ref=e316] [cursor=pointer]:
+              - /url: /search/?query=%23fantasymusic
+            - link "Exploration Music" [ref=e317] [cursor=pointer]:
+              - /url: /search/?query=%23explorationmusic
+        - generic [ref=e318]:
+          - link [ref=e319] [cursor=pointer]:
+            - /url: /asset/exonfang/gdllm-godot-agentic-harness/
+            - img "GDLLM - Godot Agentic Harness" [ref=e321]
+          - generic [ref=e322]:
+            - link [ref=e323] [cursor=pointer]:
+              - /url: /asset/exonfang/gdllm-godot-agentic-harness/
+              - heading "GDLLM - Godot Agentic Harness" [level=2] [ref=e324]
+            - link "0" [ref=e326] [cursor=pointer]:
+              - /url: /asset/exonfang/gdllm-godot-agentic-harness/#reviews
+            - link "Exonfang" [ref=e329] [cursor=pointer]:
+              - /url: /publisher/exonfang/
+            - generic [ref=e330]: FREE
+          - generic [ref=e331]:
+            - link "AI" [ref=e332] [cursor=pointer]:
+              - /url: /search/?query=%23ai
+            - link "GDScript" [ref=e333] [cursor=pointer]:
+              - /url: /search/?query=%23gdscript
+            - link "LLM" [ref=e334] [cursor=pointer]:
+              - /url: /search/?query=%23llm
+            - link "AI Agent" [ref=e335] [cursor=pointer]:
+              - /url: /search/?query=%23aiagent
+            - link "Harness" [ref=e336] [cursor=pointer]:
+              - /url: /search/?query=%23harness
+        - generic [ref=e337]:
+          - link [ref=e338] [cursor=pointer]:
+            - /url: /asset/profesor-shader/wind-driven-falling-particles/
+            - img "Wind Driven Falling Particles" [ref=e340]
+          - generic [ref=e341]:
+            - link [ref=e342] [cursor=pointer]:
+              - /url: /asset/profesor-shader/wind-driven-falling-particles/
+              - heading "Wind Driven Falling Particles" [level=2] [ref=e343]
+            - link "0" [ref=e345] [cursor=pointer]:
+              - /url: /asset/profesor-shader/wind-driven-falling-particles/#reviews
+            - link "Profesor Shader" [ref=e348] [cursor=pointer]:
+              - /url: /publisher/profesor-shader/
+            - generic [ref=e349]: FREE
+          - generic [ref=e350]:
+            - link "icon 3D" [ref=e351] [cursor=pointer]:
+              - /url: /search/?query=%233d
+              - img "icon"
+              - text: 3D
+            - link "Template" [ref=e352] [cursor=pointer]:
+              - /url: /search/?query=%23template
+            - link "icon VFX" [ref=e353] [cursor=pointer]:
+              - /url: /search/?query=%23vfx
+              - img "icon"
+              - text: VFX
+            - link "Leaves" [ref=e354] [cursor=pointer]:
+              - /url: /search/?query=%23leaves
+            - link "Feathers" [ref=e355] [cursor=pointer]:
+              - /url: /search/?query=%23feathers
+        - generic [ref=e356]:
+          - link [ref=e357] [cursor=pointer]:
+            - /url: /asset/jesuisse/radial-menu-control/
+            - img "Radial Menu Control" [ref=e359]
+          - generic [ref=e360]:
+            - link [ref=e361] [cursor=pointer]:
+              - /url: /asset/jesuisse/radial-menu-control/
+              - heading "Radial Menu Control" [level=2] [ref=e362]
+            - link "0" [ref=e364] [cursor=pointer]:
+              - /url: /asset/jesuisse/radial-menu-control/#reviews
+            - link "Pascal Schuppli" [ref=e367] [cursor=pointer]:
+              - /url: /publisher/jesuisse/
+            - generic [ref=e368]: FREE
+          - generic [ref=e369]:
+            - link "icon 2D" [ref=e370] [cursor=pointer]:
+              - /url: /search/?query=%232d
+              - img "icon"
+              - text: 2D
+            - link "GDScript" [ref=e371] [cursor=pointer]:
+              - /url: /search/?query=%23gdscript
+            - link "icon UI" [ref=e372] [cursor=pointer]:
+              - /url: /search/?query=%23ui
+              - img "icon"
+              - text: UI
+            - link "Menu" [ref=e373] [cursor=pointer]:
+              - /url: /search/?query=%23menu
+        - generic [ref=e374]:
+          - link [ref=e375] [cursor=pointer]:
+            - /url: /asset/martyn-foster/storyboard-shot-brief-template/
+            - img "Storyboard Shot Brief Template" [ref=e377]
+          - generic [ref=e378]:
+            - link [ref=e379] [cursor=pointer]:
+              - /url: /asset/martyn-foster/storyboard-shot-brief-template/
+              - heading "Storyboard Shot Brief Template" [level=2] [ref=e380]
+            - link "0" [ref=e382] [cursor=pointer]:
+              - /url: /asset/martyn-foster/storyboard-shot-brief-template/#reviews
+            - link "Martyn Foster" [ref=e385] [cursor=pointer]:
+              - /url: /publisher/martyn-foster/
+            - generic [ref=e386]: FREE
+          - generic [ref=e387]:
+            - link "Camera" [ref=e388] [cursor=pointer]:
+              - /url: /search/?query=%23camera
+            - link "Planning" [ref=e389] [cursor=pointer]:
+              - /url: /search/?query=%23planning
+    - generic [ref=e390]:
+      - generic [ref=e391]:
+        - heading "Last Updated" [level=2] [ref=e392]
+        - link "View all →" [ref=e393] [cursor=pointer]:
+          - /url: /search/?sort=created_desc
+      - generic [ref=e394]:
+        - generic [ref=e395]:
+          - link [ref=e396] [cursor=pointer]:
+            - /url: /asset/wyfyjc2019/tilecopy/
+            - img "TileCopy" [ref=e398]
+          - generic [ref=e399]:
+            - link [ref=e400] [cursor=pointer]:
+              - /url: /asset/wyfyjc2019/tilecopy/
+              - heading "TileCopy" [level=2] [ref=e401]
+            - link "1" [ref=e403] [cursor=pointer]:
+              - /url: /asset/wyfyjc2019/tilecopy/#reviews
+            - link "大炮仗 究极炸天" [ref=e406] [cursor=pointer]:
+              - /url: /publisher/wyfyjc2019/
+            - generic [ref=e407]: FREE
+          - generic [ref=e408]:
+            - link "Terrain" [ref=e409] [cursor=pointer]:
+              - /url: /search/?query=%23terrain
+            - link "icon 2D" [ref=e410] [cursor=pointer]:
+              - /url: /search/?query=%232d
+              - img "icon"
+              - text: 2D
+            - link "TileMapLayer" [ref=e411] [cursor=pointer]:
+              - /url: /search/?query=%23tilemaplayer
+            - link "Tileset" [ref=e412] [cursor=pointer]:
+              - /url: /search/?query=%23tileset
+        - generic [ref=e413]:
+          - link [ref=e414] [cursor=pointer]:
+            - /url: /asset/ezcha/network/
+            - img "Ezcha Network" [ref=e416]
+          - generic [ref=e417]:
+            - link [ref=e418] [cursor=pointer]:
+              - /url: /asset/ezcha/network/
+              - heading "Ezcha Network" [level=2] [ref=e419]
+            - link "8" [ref=e421] [cursor=pointer]:
+              - /url: /asset/ezcha/network/#reviews
+            - link "Ezcha LLC" [ref=e424] [cursor=pointer]:
+              - /url: /publisher/ezcha/
+            - generic [ref=e425]: FREE
+          - generic [ref=e426]:
+            - link "SDK" [ref=e427] [cursor=pointer]:
+              - /url: /search/?query=%23sdk
+            - link "Export" [ref=e428] [cursor=pointer]:
+              - /url: /search/?query=%23export
+            - link "Multiplayer" [ref=e429] [cursor=pointer]:
+              - /url: /search/?query=%23multiplayer
+            - link "Leaderboards" [ref=e430] [cursor=pointer]:
+              - /url: /search/?query=%23leaderboards
+            - link "Stats" [ref=e431] [cursor=pointer]:
+              - /url: /search/?query=%23stats
+        - generic [ref=e432]:
+          - link [ref=e433] [cursor=pointer]:
+            - /url: /asset/brothershort-shesi-studio/goteedit/
+            - img "GoteEdit" [ref=e435]
+          - generic [ref=e436]:
+            - link [ref=e437] [cursor=pointer]:
+              - /url: /asset/brothershort-shesi-studio/goteedit/
+              - heading "GoteEdit" [level=2] [ref=e438]
+            - link "0" [ref=e440] [cursor=pointer]:
+              - /url: /asset/brothershort-shesi-studio/goteedit/#reviews
+            - link "BrotherShort @ Shesi Studio" [ref=e443] [cursor=pointer]:
+              - /url: /publisher/brothershort-shesi-studio/
+            - generic [ref=e444]: FREE
+          - generic [ref=e445]:
+            - link "icon Control" [ref=e446] [cursor=pointer]:
+              - /url: /search/?query=%23control
+              - img "icon"
+              - text: Control
+            - link "Text" [ref=e447] [cursor=pointer]:
+              - /url: /search/?query=%23text
+        - generic [ref=e448]:
+          - link [ref=e449] [cursor=pointer]:
+            - /url: /asset/boneboxid/attai-adobe-animate-atlas-texture-animation-importer/
+            - img "AATTAAI - Adobe Animate Texture Atlas Animation Importer" [ref=e451]
+          - generic [ref=e452]:
+            - link [ref=e453] [cursor=pointer]:
+              - /url: /asset/boneboxid/attai-adobe-animate-atlas-texture-animation-importer/
+              - heading "AATTAAI - Adobe Animate Texture Atlas Animation Importer" [level=2] [ref=e454]
+            - link "0" [ref=e456] [cursor=pointer]:
+              - /url: /asset/boneboxid/attai-adobe-animate-atlas-texture-animation-importer/#reviews
+            - link "boneboxid" [ref=e459] [cursor=pointer]:
+              - /url: /publisher/boneboxid/
+            - generic [ref=e460]: FREE
+          - generic [ref=e461]:
+            - link "Importer" [ref=e462] [cursor=pointer]:
+              - /url: /search/?query=%23importer
+            - link "Adobe Animate" [ref=e463] [cursor=pointer]:
+              - /url: /search/?query=%23adobeanimate
+            - link "Texture Atlas" [ref=e464] [cursor=pointer]:
+              - /url: /search/?query=%23textureatlas
+        - generic [ref=e465]:
+          - link [ref=e466] [cursor=pointer]:
+            - /url: /asset/diegodelarocha/logicbasicsgodotvisualscripting/
+            - 'img "Logic Basics: Godot & Visual Scripting" [ref=e468]'
+          - generic [ref=e469]:
+            - link [ref=e470] [cursor=pointer]:
+              - /url: /asset/diegodelarocha/logicbasicsgodotvisualscripting/
+              - 'heading "Logic Basics: Godot & Visual Scripting" [level=2] [ref=e471]'
+            - link "1" [ref=e473] [cursor=pointer]:
+              - /url: /asset/diegodelarocha/logicbasicsgodotvisualscripting/#reviews
+            - link "Diego De la Rocha" [ref=e476] [cursor=pointer]:
+              - /url: /publisher/diegodelarocha/
+            - generic [ref=e477]: FREE
+          - generic [ref=e478]:
+            - link "icon 3D" [ref=e479] [cursor=pointer]:
+              - /url: /search/?query=%233d
+              - img "icon"
+              - text: 3D
+            - link "Dialogue" [ref=e480] [cursor=pointer]:
+              - /url: /search/?query=%23dialogue
+            - link "icon UI" [ref=e481] [cursor=pointer]:
+              - /url: /search/?query=%23ui
+              - img "icon"
+              - text: UI
+            - link "Orchestrator" [ref=e482] [cursor=pointer]:
+              - /url: /search/?query=%23orchestrator
+            - link "Visual Scripting" [ref=e483] [cursor=pointer]:
+              - /url: /search/?query=%23visualscripting
+        - generic [ref=e484]:
+          - link [ref=e485] [cursor=pointer]:
+            - /url: /asset/saeid-saati/stdjson/
+            - img "stdjson" [ref=e487]
+          - generic [ref=e488]:
+            - link [ref=e489] [cursor=pointer]:
+              - /url: /asset/saeid-saati/stdjson/
+              - heading "stdjson" [level=2] [ref=e490]
+            - link "0" [ref=e492] [cursor=pointer]:
+              - /url: /asset/saeid-saati/stdjson/#reviews
+            - link "Saeid Saati" [ref=e495] [cursor=pointer]:
+              - /url: /publisher/saeid-saati/
+            - generic [ref=e496]: FREE
+          - generic [ref=e497]:
+            - link "GDScript" [ref=e498] [cursor=pointer]:
+              - /url: /search/?query=%23gdscript
+            - link "JSON" [ref=e499] [cursor=pointer]:
+              - /url: /search/?query=%23json
+            - link "Scripts" [ref=e500] [cursor=pointer]:
+              - /url: /search/?query=%23scripts
+            - link "Script" [ref=e501] [cursor=pointer]:
+              - /url: /search/?query=%23script
+        - generic [ref=e502]:
+          - link [ref=e503] [cursor=pointer]:
+            - /url: /asset/goodchoice/animation-combiner/
+            - img "Animation Combiner" [ref=e505]
+          - generic [ref=e506]:
+            - link [ref=e507] [cursor=pointer]:
+              - /url: /asset/goodchoice/animation-combiner/
+              - heading "Animation Combiner" [level=2] [ref=e508]
+            - link "0" [ref=e510] [cursor=pointer]:
+              - /url: /asset/goodchoice/animation-combiner/#reviews
+            - link "GoodChoice" [ref=e513] [cursor=pointer]:
+              - /url: /publisher/goodchoice/
+            - generic [ref=e514]: FREE
+          - generic [ref=e515]:
+            - link "icon 3D" [ref=e516] [cursor=pointer]:
+              - /url: /search/?query=%233d
+              - img "icon"
+              - text: 3D
+            - link "Mixamo" [ref=e517] [cursor=pointer]:
+              - /url: /search/?query=%23mixamo
+        - generic [ref=e518]:
+          - link [ref=e519] [cursor=pointer]:
+            - /url: /asset/indieshade/saveflow/
+            - img "SaveFlow" [ref=e521]
+          - generic [ref=e522]:
+            - link [ref=e523] [cursor=pointer]:
+              - /url: /asset/indieshade/saveflow/
+              - heading "SaveFlow" [level=2] [ref=e524]
+            - link "0" [ref=e526] [cursor=pointer]:
+              - /url: /asset/indieshade/saveflow/#reviews
+            - link "IndieShade" [ref=e529] [cursor=pointer]:
+              - /url: /publisher/indieshade/
+            - generic [ref=e530]: FREE
+          - generic [ref=e531]:
+            - link "Serialization" [ref=e532] [cursor=pointer]:
+              - /url: /search/?query=%23serialization
+            - link "Scripts" [ref=e533] [cursor=pointer]:
+              - /url: /search/?query=%23scripts
+            - link "Workflow" [ref=e534] [cursor=pointer]:
+              - /url: /search/?query=%23workflow
+            - link "Save System" [ref=e535] [cursor=pointer]:
+              - /url: /search/?query=%23savesystem
+            - link "Editor Tool" [ref=e536] [cursor=pointer]:
+              - /url: /search/?query=%23editortool
+    - generic [ref=e538]:
+      - generic [ref=e539]:
+        - heading "Latest Tools" [level=2] [ref=e540]
+        - link "View all →" [ref=e541] [cursor=pointer]:
+          - /url: /search/?query=%23tool
+      - generic [ref=e542]:
+        - generic [ref=e543]:
+          - link [ref=e544] [cursor=pointer]:
+            - /url: /asset/dnisachixen/calcunow/
+            - img "Calcunow - Quick Calculator" [ref=e546]
+          - generic [ref=e547]:
+            - link [ref=e548] [cursor=pointer]:
+              - /url: /asset/dnisachixen/calcunow/
+              - heading "Calcunow - Quick Calculator" [level=2] [ref=e549]
+            - link "0" [ref=e551] [cursor=pointer]:
+              - /url: /asset/dnisachixen/calcunow/#reviews
+            - link "dnisachixen" [ref=e554] [cursor=pointer]:
+              - /url: /publisher/dnisachixen/
+            - generic [ref=e555]: FREE
+          - link "icon Tool" [ref=e557] [cursor=pointer]:
+            - /url: /search/?query=%23tool
+            - img "icon"
+            - text: Tool
+        - generic [ref=e558]:
+          - link [ref=e559] [cursor=pointer]:
+            - /url: /asset/vvaytoyek/old-fashioned-sewing-machine/
+            - img "Old-fashioned Sewing Machine - Free" [ref=e561]
+          - generic [ref=e562]:
+            - link [ref=e563] [cursor=pointer]:
+              - /url: /asset/vvaytoyek/old-fashioned-sewing-machine/
+              - heading "Old-fashioned Sewing Machine - Free" [level=2] [ref=e564]
+            - link "0" [ref=e566] [cursor=pointer]:
+              - /url: /asset/vvaytoyek/old-fashioned-sewing-machine/#reviews
+            - link "VVaytoyek" [ref=e569] [cursor=pointer]:
+              - /url: /publisher/vvaytoyek/
+            - generic [ref=e570]: FREE
+          - generic [ref=e571]:
+            - link "icon 3D" [ref=e572] [cursor=pointer]:
+              - /url: /search/?query=%233d
+              - img "icon"
+              - text: 3D
+            - link "Retro" [ref=e573] [cursor=pointer]:
+              - /url: /search/?query=%23retro
+            - link "History" [ref=e574] [cursor=pointer]:
+              - /url: /search/?query=%23history
+            - link "icon Tool" [ref=e575] [cursor=pointer]:
+              - /url: /search/?query=%23tool
+              - img "icon"
+              - text: Tool
+            - link "Classic" [ref=e576] [cursor=pointer]:
+              - /url: /search/?query=%23classic
+        - generic [ref=e577]:
+          - link [ref=e578] [cursor=pointer]:
+            - /url: /asset/raykit-studio/mobile-quick-action-free/
+            - img "Mobile Quick Action (free)" [ref=e580]
+          - generic [ref=e581]:
+            - link [ref=e582] [cursor=pointer]:
+              - /url: /asset/raykit-studio/mobile-quick-action-free/
+              - heading "Mobile Quick Action (free)" [level=2] [ref=e583]
+            - link "0" [ref=e585] [cursor=pointer]:
+              - /url: /asset/raykit-studio/mobile-quick-action-free/#reviews
+            - link "Raykit Studio" [ref=e588] [cursor=pointer]:
+              - /url: /publisher/raykit-studio/
+            - generic [ref=e589]: FREE
+          - generic [ref=e590]:
+            - link "GDScript" [ref=e591] [cursor=pointer]:
+              - /url: /search/?query=%23gdscript
+            - link "icon Tool" [ref=e592] [cursor=pointer]:
+              - /url: /search/?query=%23tool
+              - img "icon"
+              - text: Tool
+            - link "Plugin" [ref=e593] [cursor=pointer]:
+              - /url: /search/?query=%23plugin
+        - generic [ref=e594]:
+          - link [ref=e595] [cursor=pointer]:
+            - /url: /asset/npgamedev/godot-mcp-toolkit/
+            - img "Godot MCP Toolkit" [ref=e597]
+          - generic [ref=e598]:
+            - link [ref=e599] [cursor=pointer]:
+              - /url: /asset/npgamedev/godot-mcp-toolkit/
+              - heading "Godot MCP Toolkit" [level=2] [ref=e600]
+            - link "10" [ref=e602] [cursor=pointer]:
+              - /url: /asset/npgamedev/godot-mcp-toolkit/#reviews
+            - link "NPGameDev" [ref=e605] [cursor=pointer]:
+              - /url: /publisher/npgamedev/
+            - generic [ref=e606]: FREE
+          - generic [ref=e607]:
+            - link "AI" [ref=e608] [cursor=pointer]:
+              - /url: /search/?query=%23ai
+            - link "MCP" [ref=e609] [cursor=pointer]:
+              - /url: /search/?query=%23mcp
+            - link "icon Tool" [ref=e610] [cursor=pointer]:
+              - /url: /search/?query=%23tool
+              - img "icon"
+              - text: Tool
+            - link "AI Agent" [ref=e611] [cursor=pointer]:
+              - /url: /search/?query=%23aiagent
+            - link "Editor" [ref=e612] [cursor=pointer]:
+              - /url: /search/?query=%23editor
+    - generic [ref=e614]:
+      - generic [ref=e615]:
+        - heading "3D Assets" [level=2] [ref=e616]
+        - link "View all →" [ref=e617] [cursor=pointer]:
+          - /url: /search/?query=%233D
+      - generic [ref=e618]:
+        - generic [ref=e619]:
+          - link [ref=e620] [cursor=pointer]:
+            - /url: /asset/profesor-shader/wind-driven-falling-particles/
+            - img "Wind Driven Falling Particles" [ref=e622]
+          - generic [ref=e623]:
+            - link [ref=e624] [cursor=pointer]:
+              - /url: /asset/profesor-shader/wind-driven-falling-particles/
+              - heading "Wind Driven Falling Particles" [level=2] [ref=e625]
+            - link "0" [ref=e627] [cursor=pointer]:
+              - /url: /asset/profesor-shader/wind-driven-falling-particles/#reviews
+            - link "Profesor Shader" [ref=e630] [cursor=pointer]:
+              - /url: /publisher/profesor-shader/
+            - generic [ref=e631]: FREE
+          - generic [ref=e632]:
+            - link "icon 3D" [ref=e633] [cursor=pointer]:
+              - /url: /search/?query=%233d
+              - img "icon"
+              - text: 3D
+            - link "Template" [ref=e634] [cursor=pointer]:
+              - /url: /search/?query=%23template
+            - link "icon VFX" [ref=e635] [cursor=pointer]:
+              - /url: /search/?query=%23vfx
+              - img "icon"
+              - text: VFX
+            - link "Leaves" [ref=e636] [cursor=pointer]:
+              - /url: /search/?query=%23leaves
+            - link "Feathers" [ref=e637] [cursor=pointer]:
+              - /url: /search/?query=%23feathers
+        - generic [ref=e638]:
+          - link [ref=e639] [cursor=pointer]:
+            - /url: /asset/vvaytoyek/old-fashioned-sewing-machine/
+            - img "Old-fashioned Sewing Machine - Free" [ref=e641]
+          - generic [ref=e642]:
+            - link [ref=e643] [cursor=pointer]:
+              - /url: /asset/vvaytoyek/old-fashioned-sewing-machine/
+              - heading "Old-fashioned Sewing Machine - Free" [level=2] [ref=e644]
+            - link "0" [ref=e646] [cursor=pointer]:
+              - /url: /asset/vvaytoyek/old-fashioned-sewing-machine/#reviews
+            - link "VVaytoyek" [ref=e649] [cursor=pointer]:
+              - /url: /publisher/vvaytoyek/
+            - generic [ref=e650]: FREE
+          - generic [ref=e651]:
+            - link "icon 3D" [ref=e652] [cursor=pointer]:
+              - /url: /search/?query=%233d
+              - img "icon"
+              - text: 3D
+            - link "Retro" [ref=e653] [cursor=pointer]:
+              - /url: /search/?query=%23retro
+            - link "History" [ref=e654] [cursor=pointer]:
+              - /url: /search/?query=%23history
+            - link "icon Tool" [ref=e655] [cursor=pointer]:
+              - /url: /search/?query=%23tool
+              - img "icon"
+              - text: Tool
+            - link "Classic" [ref=e656] [cursor=pointer]:
+              - /url: /search/?query=%23classic
+        - generic [ref=e657]:
+          - link [ref=e658] [cursor=pointer]:
+            - /url: /asset/bearlikelion/succ/
+            - img "SUCC - SurfsUp Character Controller" [ref=e660]
+          - generic [ref=e661]:
+            - link [ref=e662] [cursor=pointer]:
+              - /url: /asset/bearlikelion/succ/
+              - heading "SUCC - SurfsUp Character Controller" [level=2] [ref=e663]
+            - link "0" [ref=e665] [cursor=pointer]:
+              - /url: /asset/bearlikelion/succ/#reviews
+            - link "bearlikelion" [ref=e668] [cursor=pointer]:
+              - /url: /publisher/bearlikelion/
+            - generic [ref=e669]: FREE
+          - generic [ref=e670]:
+            - link "icon 3D" [ref=e671] [cursor=pointer]:
+              - /url: /search/?query=%233d
+              - img "icon"
+              - text: 3D
+            - link "Camera" [ref=e672] [cursor=pointer]:
+              - /url: /search/?query=%23camera
+            - link "GDScript" [ref=e673] [cursor=pointer]:
+              - /url: /search/?query=%23gdscript
+            - link "Player Character" [ref=e674] [cursor=pointer]:
+              - /url: /search/?query=%23playercharacter
+            - link "CharacterBody3D" [ref=e675] [cursor=pointer]:
+              - /url: /search/?query=%23characterbody3d
+        - generic [ref=e676]:
+          - link [ref=e677] [cursor=pointer]:
+            - /url: /asset/hungryproton/protonscatter/
+            - img "ProtonScatter" [ref=e679]
+          - generic [ref=e680]:
+            - link [ref=e681] [cursor=pointer]:
+              - /url: /asset/hungryproton/protonscatter/
+              - heading "ProtonScatter" [level=2] [ref=e682]
+            - link "6" [ref=e684] [cursor=pointer]:
+              - /url: /asset/hungryproton/protonscatter/#reviews
+            - link "HungryProton" [ref=e687] [cursor=pointer]:
+              - /url: /publisher/hungryproton/
+            - generic [ref=e688]: FREE
+          - generic [ref=e689]:
+            - link "icon 3D" [ref=e690] [cursor=pointer]:
+              - /url: /search/?query=%233d
+              - img "icon"
+              - text: 3D
+            - link "Level Design" [ref=e691] [cursor=pointer]:
+              - /url: /search/?query=%23leveldesign
+            - link "Scatter" [ref=e692] [cursor=pointer]:
+              - /url: /search/?query=%23scatter
+    - generic [ref=e694]:
+      - generic [ref=e695]:
+        - heading "XR Assets" [level=2] [ref=e696]
+        - link "View all →" [ref=e697] [cursor=pointer]:
+          - /url: /search/?query=%23XR
+      - generic [ref=e698]:
+        - generic [ref=e699]:
+          - link [ref=e700] [cursor=pointer]:
+            - /url: /asset/godot-foundation/webxr-demo/
+            - img "WebXR Demo" [ref=e702]
+          - generic [ref=e703]:
+            - link [ref=e704] [cursor=pointer]:
+              - /url: /asset/godot-foundation/webxr-demo/
+              - heading "WebXR Demo" [level=2] [ref=e705]
+            - link "0" [ref=e707] [cursor=pointer]:
+              - /url: /asset/godot-foundation/webxr-demo/#reviews
+            - link "Godot Foundation" [ref=e710] [cursor=pointer]:
+              - /url: /publisher/godot-foundation/
+            - generic [ref=e712]: FREE
+          - generic [ref=e713]:
+            - link "icon XR" [ref=e714] [cursor=pointer]:
+              - /url: /search/?query=%23xr
+              - img "icon"
+              - text: XR
+            - link "VR" [ref=e715] [cursor=pointer]:
+              - /url: /search/?query=%23vr
+            - link "Web" [ref=e716] [cursor=pointer]:
+              - /url: /search/?query=%23web
+            - link "Demo" [ref=e717] [cursor=pointer]:
+              - /url: /search/?query=%23demo
+        - generic [ref=e718]:
+          - link [ref=e719] [cursor=pointer]:
+            - /url: /asset/godot-foundation/openxr-spectator-view-demo/
+            - img "OpenXR Spectator View Demo" [ref=e721]
+          - generic [ref=e722]:
+            - link [ref=e723] [cursor=pointer]:
+              - /url: /asset/godot-foundation/openxr-spectator-view-demo/
+              - heading "OpenXR Spectator View Demo" [level=2] [ref=e724]
+            - link "0" [ref=e726] [cursor=pointer]:
+              - /url: /asset/godot-foundation/openxr-spectator-view-demo/#reviews
+            - link "Godot Foundation" [ref=e729] [cursor=pointer]:
+              - /url: /publisher/godot-foundation/
+            - generic [ref=e731]: FREE
+          - generic [ref=e732]:
+            - link "icon XR" [ref=e733] [cursor=pointer]:
+              - /url: /search/?query=%23xr
+              - img "icon"
+              - text: XR
+            - link "VR" [ref=e734] [cursor=pointer]:
+              - /url: /search/?query=%23vr
+            - link "Demo" [ref=e735] [cursor=pointer]:
+              - /url: /search/?query=%23demo
+        - generic [ref=e736]:
+          - link [ref=e737] [cursor=pointer]:
+            - /url: /asset/godot-foundation/openxr-render-models-demo/
+            - img "OpenXR Render Models Demo" [ref=e739]
+          - generic [ref=e740]:
+            - link [ref=e741] [cursor=pointer]:
+              - /url: /asset/godot-foundation/openxr-render-models-demo/
+              - heading "OpenXR Render Models Demo" [level=2] [ref=e742]
+            - link "0" [ref=e744] [cursor=pointer]:
+              - /url: /asset/godot-foundation/openxr-render-models-demo/#reviews
+            - link "Godot Foundation" [ref=e747] [cursor=pointer]:
+              - /url: /publisher/godot-foundation/
+            - generic [ref=e749]: FREE
+          - generic [ref=e750]:
+            - link "icon XR" [ref=e751] [cursor=pointer]:
+              - /url: /search/?query=%23xr
+              - img "icon"
+              - text: XR
+            - link "VR" [ref=e752] [cursor=pointer]:
+              - /url: /search/?query=%23vr
+            - link "Demo" [ref=e753] [cursor=pointer]:
+              - /url: /search/?query=%23demo
+        - generic [ref=e754]:
+          - link [ref=e755] [cursor=pointer]:
+            - /url: /asset/godot-foundation/openxr-passthrough-demo/
+            - img "OpenXR Passthrough Demo" [ref=e757]
+          - generic [ref=e758]:
+            - link [ref=e759] [cursor=pointer]:
+              - /url: /asset/godot-foundation/openxr-passthrough-demo/
+              - heading "OpenXR Passthrough Demo" [level=2] [ref=e760]
+            - link "0" [ref=e762] [cursor=pointer]:
+              - /url: /asset/godot-foundation/openxr-passthrough-demo/#reviews
+            - link "Godot Foundation" [ref=e765] [cursor=pointer]:
+              - /url: /publisher/godot-foundation/
+            - generic [ref=e767]: FREE
+          - generic [ref=e768]:
+            - link "icon XR" [ref=e769] [cursor=pointer]:
+              - /url: /search/?query=%23xr
+              - img "icon"
+              - text: XR
+            - link "VR" [ref=e770] [cursor=pointer]:
+              - /url: /search/?query=%23vr
+            - link "Demo" [ref=e771] [cursor=pointer]:
+              - /url: /search/?query=%23demo
+  - contentinfo [ref=e772]:
+    - paragraph [ref=e773]:
+      - text: The Asset Store is being developed and is currently in
+      - strong [ref=e774]: beta
+      - text: . If you would like to know the latest changes visit our
+      - link "changelog" [ref=e775] [cursor=pointer]:
+        - /url: /changelog
+      - text: . For our future plans, visit our
+      - link "roadmap" [ref=e776] [cursor=pointer]:
+        - /url: /roadmap
+      - text: .
+    - paragraph [ref=e777]:
+      - text: If you found any issue or if you have a suggestion, please create an issue in our
+      - link "issue tracker" [ref=e778] [cursor=pointer]:
+        - /url: https://github.com/godotengine/godot-asset-store-tracker
+      - text: .
+    - paragraph [ref=e779]:
+      - link "Terms" [ref=e780] [cursor=pointer]:
+        - /url: /terms/
+      - text: –
+      - link "Help" [ref=e781] [cursor=pointer]:
+        - /url: /help/
+      - text: –
+      - link "Guidelines" [ref=e782] [cursor=pointer]:
+        - /url: /guidelines/
+    - paragraph [ref=e783]:
+      - text: © 2025-2026 - Godot Asset Store by
+      - link "Godot Foundation" [ref=e784] [cursor=pointer]:
+        - /url: https://godot.foundation
+      - text: .

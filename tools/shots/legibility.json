@@ -194,7 +194,7 @@
       "expect_clip": "idle"
     },
     {
-      "_note": "Charge held past the 1067 ms threshold. Expected WEAKEST: charging happens inside Idle, so the pose is the idle pose and only the blade colour differs. A forced-choice test should expose that.",
+      "_note": "Charge held past the 1067 ms threshold. This was the weakest frame in the set and the only low-confidence call a critic made: charging runs inside the Idle state, so the pose WAS the idle pose and the only differences were the blade's colour and a soft ground glow — 'if the glow had been absent I would have called it IDLE with confidence 5 and been wrong'. There are now two hard-edged cues: a held anticipation pose (the `charge` clip, which is why expect_clip is no longer `idle`) and an outlined teal ground ring that closes inward. capture_offset waits 8 frames so the ring has finished converging — the charge is a HELD state, so any frame of it is representative, and the first frame of a 110 ms convergence is the least so.",
       "name": "pair5_action",
       "player_position": [
         16,
@@ -212,8 +212,9 @@
       "capture_when": {
         "charged": true
       },
+      "capture_offset": 8,
       "expect_state": "Idle",
-      "expect_clip": "idle"
+      "expect_clip": "charge"
     },
     {
       "_note": "CONTROL for this position. Waits until the player genuinely IS idle rather than assuming a frame count, so a shot that inherited a fall or a slide self-corrects instead of quietly captioning a walk cycle as idle.",

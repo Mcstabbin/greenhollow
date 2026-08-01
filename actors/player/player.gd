@@ -121,6 +121,7 @@ signal attack_landed(hurt_box: HurtBox3D)
 @onready var charge_glow: OmniLight3D = sword.get_node("ChargeGlow")
 @onready var sword_trail: SwordTrail = $SwordTrail
 @onready var spin_ring: SpinRing = $SpinRing
+@onready var charge_ring: ChargeRing = $ChargeRing
 @onready var sfx_blade_player: AudioStreamPlayer3D = $SfxBlade
 @onready var sfx_cue_player: AudioStreamPlayer3D = $SfxCue
 # Typed as Node, not PlayerStateMachine: the states are typed against Player, so
@@ -398,7 +399,17 @@ func begin_attack(clip: StringName, spin: bool) -> void:
 	sword_hitbox.end_swing()
 	sword_hitbox.amount = spin_damage if spin else slash_damage
 	spin_ring.stop()
-	_blade_hot = false
+	# The ribbon and the hot blade open HERE, on the frame the swing is committed,
+	# and not on the clip's `_anim_trail_on` key three frames later. A critic could
+	# only find the wind-up frame by comparing it against its paired idle — "a
+	# forearm raised one body-width with no flash, no trail, no ground mark and no
+	# change in stance is not enough at speed" — and no method track can help,
+	# because the earliest one can fire is a frame after the clip starts. The trail
+	# opens narrow (SwordTrail.bloom_from) so the wind-up carries an outlined shape
+	# attached to the blade rather than a band that says the swing already happened.
+	# SwordTrail.start() is guarded, so the clip's key is now a harmless no-op.
+	sword_trail.start()
+	_blade_hot = true
 	_refresh_blade_look()
 	play_anim(clip, 1.0, true)
 	_play_blade(sfx_swing_heavy if spin else sfx_swing, -5.0)
@@ -456,14 +467,16 @@ func _anim_hitbox_off() -> void:
 
 ## The ribbon is deliberately NOT tied to the hitbox window. The live window is
 ## 100 ms, but the readable part of a swing is the whole arc either side of it, so
-## the clips open the trail a few frames before the hitbox and close it a few
-## after. Keeping them separate means the arc can be made more legible without
-## touching a single measured gameplay number.
+## the clip closes the trail several frames after the hitbox. Keeping them separate
+## means the arc can be made more legible without touching a measured gameplay
+## number.
+##
+## Opening it, though, is no longer this key's job — begin_attack does it on the
+## frame the swing is committed, because the earliest a method track can fire is
+## already a frame too late for the wind-up. SwordTrail.start() is guarded against
+## restarting, so this remains harmless and the clip keeps documenting the window.
 func _anim_trail_on() -> void:
 	sword_trail.start()
-	# The blade goes hot with the ribbon, not with the hitbox. Three frames of
-	# anticipation is what makes the wind-up pose read as a wind-up instead of as a
-	# character holding a sword up.
 	_blade_hot = true
 	_refresh_blade_look()
 
@@ -523,6 +536,22 @@ func update_locomotion_anim(on_floor: bool) -> void:
 	var wanted := "jump"
 	if on_floor:
 		wanted = "walk" if speed > walk_anim_threshold else "idle"
+		# The charge's POSE. Charging runs inside the Idle state, so before this the
+		# charged pose WAS the idle pose and the only difference between "about to
+		# unleash a spin" and "standing there" was a tint on a thirty-pixel blade.
+		# Gated on standing still, not merely on being charged: a coiled
+		# anticipation pose sliding across the ground on a walk cycle's feet is a
+		# worse read than no pose change at all.
+		if _charged and speed <= walk_anim_threshold:
+			wanted = "charge"
+		elif _spin_requested and _state_machine.get_current_node() == &"charge":
+			# The charge has just been released and the Attack state will accept it in
+			# this same tick, travelling to the spin's own clip. Travelling to `idle`
+			# first is two travel() calls in one frame, and the AnimationTree pays for
+			# that with two extra frames before the new clip's first method key fires:
+			# measured, it moved spin_windup from 167 ms to 200 ms. Leave the machine
+			# where it is and let begin_attack take it from `charge`.
+			return
 	if _state_machine.get_current_node() != wanted:
 		_state_machine.travel(wanted)
 
@@ -550,6 +579,15 @@ func _refresh_blade_look() -> void:
 		blade.material_override = blade_material
 	if charge_glow != null:
 		charge_glow.visible = _charged
+	# The ring is the half of the charge tell that has EDGES. The light wash and the
+	# cyan blade are both value-only cues, and a critic reading a charged frame
+	# beside its idle said that without the wash it would have called the frame IDLE
+	# with full confidence and been wrong. See charge_ring.gd.
+	if charge_ring != null:
+		if _charged:
+			charge_ring.begin()
+		else:
+			charge_ring.stop()
 
 
 func _on_sword_landed(hurt_box: HurtBox3D) -> void:

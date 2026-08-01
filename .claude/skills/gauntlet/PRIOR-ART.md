@@ -234,3 +234,109 @@ func set_owner_on_new_nodes(node: Node, scene_owner: Node) -> void:
 		if child.scene_file_path.is_empty():
 			set_owner_on_new_nodes(child, scene_owner)
 ```
+
+---
+
+# Prior art — items, weapons, equipment
+
+Third Rule 1 pass, for the sword / shield / axe / bow work. Verified 2026-08-01.
+
+## The finding that decides the design
+
+**`godot-demo-projects/2d/finite_state_machine/player/weapon/sword.gd`** (MIT) —
+the engine's own demo, and *already cited above* for the pushdown stack — holds a
+weapon's combo as **data**, with commitment windows as AnimationPlayer method
+tracks. Exactly the shape we already use for attack timing:
+
+```gdscript
+var combo := [{"damage": 1, "animation": "attack_fast",   "effect": null},
+              {"damage": 1, "animation": "attack_fast",   "effect": null},
+              {"damage": 3, "animation": "attack_medium", "effect": null}]
+attack_current = combo[combo_count - 1]
+$AnimationPlayer.play(attack_current["animation"])
+
+# Use with AnimationPlayer func track.
+func set_ready_for_next_attack() -> void:
+	ready_for_next_attack = true
+```
+
+It also prevents multi-hits per swing by recorded RID — the same idea as our
+`SwordHitBox._hit_this_swing`: `if body.get_rid().get_id() in hit_objects: return`.
+
+Consequence for us: a weapon's attack chain is `Array[AttackStep]`, where a step is
+a clip plus its damage actions plus its timing. **That is what makes the axe's
+second hit land harder than its first with no new code**, and what keeps a heavy
+weapon a matter of numbers rather than a code path.
+
+## Reject, with reasons
+
+- **[gloot](https://github.com/peter-kish/gloot)** (955★, MIT, genuinely 4.7-current
+  — the best-maintained thing in the space). Rejected on architecture, not
+  staleness: `InventoryItem extends RefCounted` with `var protoset: JSON` and an
+  untyped `_properties: Dictionary`, item templates as a JSON "prototree" with
+  string-keyed inheritance, read back via `get_property("damage")`. It gives up
+  `@export`, static typing and inspector editing — the three things `CLAUDE.md`
+  mandates — to buy grid, weight and stacking machinery we have no use for.
+- **OctoD/godot-gameplay-systems** (739★). Its rewrite **dropped inventory and
+  equipment entirely**; the live successors (`godot_gameplay_attributes`,
+  `godot-gameplay-abilities`) cover neither items nor equipment, and there is no
+  migration path.
+- **NekoZer0158/NZ_projectiles** (10★, MIT) — the *only* 3D projectile addon in
+  existence, and it is a bullet-hell framework: ~120 script files, a strategy
+  Resource per behaviour (`RP_lives`, `RP_stop_moving`, `Move_on_path3D`), three
+  emitter plugins. Build our own arrow.
+- **Any grid/slot inventory addon.** Seventeen exist for 4.7; we own four items and
+  one slot.
+
+**awesome-godot blesses none of them.** gloot, pandora (1092★), OctoD, ExpressoBits
+(724★) and wyvernbox are *all* absent from the curated list; its single inventory
+entry is a 73★ runtime-Dictionary registry with no editor authoring. The curators'
+silence is the signal.
+
+## Worth reading, not vendoring
+
+- **[COGITO](https://codeberg.org/Phazorknight/Cogito)** (MIT, awesome-godot) — the
+  one shipped-quality Godot 4 template built around 3D interactable and carried
+  objects. Wrong genre (first-person immersive sim) but read before writing equip.
+- **[elliotfontaine/yard-godot](https://github.com/elliotfontaine/yard-godot)**
+  (299★, MIT) — catalogues *your own* Resource subclasses so an `@export` becomes a
+  validated-ID dropdown, with only UID→string-ID mappings committed:
+  ```gdscript
+  @export_custom(Registry.PROPERTY_HINT_CUSTOM, "res://data/item_registry.tres") var item: StringName
+  ```
+  **Directly relevant to a real hazard here**: this project has no resource UIDs, so
+  a plain `@export var contains: WeaponData` on a chest is a `path=`-only reference
+  that breaks silently when a weapon `.tres` is renamed. Either hand-author UIDs on
+  the item resources or validate by ID. Don't build the registry layer at four items.
+- **`godot-demo-projects/xr/openxr_hand_tracking_demo/pickup/`** — the only 3D
+  hold/carry code in the demo repo, and the reparent-preserving-world-transform
+  dance an item-get pose needs. **Do not copy its highlight**: it uses
+  `material_overlay`, which `CLAUDE.md` forbids — a second draw plus a first-use
+  shader compile, i.e. a stutter on exactly the frame the item appears.
+- **`godot-demo-projects/loading/runtime_save_load`** — the official pattern for
+  persisting resources at runtime, for when loadout state needs to survive a reload.
+
+## When to revisit
+
+KoBeWi (Godot core contributor) argues **against** Resource-per-item in
+`Godot-Text-Database`'s README: a custom Resource per data row *"is actually
+inconvenient, as you need to edit the resources in the inspector… which just creates
+incredible clutter"*, preferring `ConfigFile`. True at 200 items, irrelevant at
+four. It is the reason not to build a registry now, and the reason to revisit past
+roughly **30 items**.
+
+## Searching the ecosystem — two API gotchas
+
+- Asset Library: `godot_version` **must** be supplied or the API silently returns
+  zero rows. `type=any` returns 0; omit it. Counts for 4.7: inventory 17, projectile
+  9, weapon 1, equipment **0**, bow **0** (both bow hits are false positives).
+- Its successor **[store.godotengine.org](https://store.godotengine.org/)** searches
+  at `/search/?query=<term>`, not `?q=`. Only one inventory addon anywhere declares
+  min 4.7 (`Oen44/Godot-Inventory`), and it is another grid system.
+
+## Cost, so this can be sequenced
+
+Sword already exists. Chest item-get is small. **Axe ≈ half a session** if the data
+model is right — if an axe needs a code path, the model is wrong. **Shield 1–1.5**,
+and it overlaps sub-wave B's block state, so do them once. **Bow 3–4**: it is the
+only genuinely new subsystem.

@@ -86,6 +86,7 @@ func _initialize() -> void:
 
 	_copy_glb_clips(lib)
 
+	lib.add_animation(&"charge", _build_charge())
 	lib.add_animation(&"slash_a", _build_slash_a())
 	lib.add_animation(&"slash_b", _build_slash_b())
 	lib.add_animation(&"spin_attack", _build_spin())
@@ -166,6 +167,14 @@ const SLASH_CANCEL := 21.0 * F     # 0.35    -> 400 ms commitment
 ## tell because it is a 360 degree sweep, a longer live window because the blade
 ## really is out there for two revolutions, and a much bigger commitment because
 ## that is the price of the charge. 167 ms wind-up, 300 ms live, 650 ms commit.
+##
+## The wind-up figure carries one frame the slashes do not, and it is the price of the
+## charge POSE rather than of this constant. The AnimationTree will not start a travel
+## while a state is still fading in, so a player who releases on the exact frame the
+## charge chime plays releases INTO the charge clip's fade and pays for it. Traced
+## frame by frame: 150 ms with no charge pose at all, 200 ms at a 0.06 s fade, and
+## 167 ms at the 0.02 s fade player.tscn now uses. This comment previously claimed
+## 167 while the probe measured 150; it is now true.
 const SPIN_LEN := 42.0 * F         # 0.700
 const SPIN_HIT_ON := 7.0 * F       # 0.11667 -> measures 167 ms
 const SPIN_HIT_OFF := 25.0 * F     # 0.41667 -> 300 ms live
@@ -221,6 +230,56 @@ const TRAIL_LAG := 7.0 * F
 ## Both are joined by the trail (actors/player/sword_trail.gd), which is what
 ## turns six ticks of arm rotation into a shape a still frame can hold.
 
+## CHARGE_LEN is a hold, not an action: it loops for as long as the button is held.
+## 42 frames of slow breath, because a genuinely frozen pose reads as the game
+## having hung.
+const CHARGE_LEN := 42.0 * F
+
+
+## The charged-and-waiting POSE.
+##
+## Why this clip exists at all. A fresh critic given a charged frame beside its
+## paired idle called it the only low-confidence judgement in a twelve-frame
+## forced-choice set: "shot_10 has no pose cue at all. The character is standing in
+## the exact idle pose; only the blade's colour and a ground glow changed. If the
+## glow had been absent I would have called it IDLE with confidence 5 and been
+## wrong." The charge runs inside the Idle state, so the pose WAS the idle pose, and
+## a tint on a thirty-pixel blade is not a signal.
+##
+## It is deliberately the same shape as slash_a's wind-up — blade cocked high and
+## back over the sword shoulder, chest coiled away, weight sunk onto a staggered
+## stance — because that shape already means "a cut is coming" and reusing it is how
+## a player learns one vocabulary instead of two. What separates charged from
+## swinging is hue, which is already established: cyan blade and a teal ground ring
+## for charged, orange blade and an orange ribbon for the swing.
+##
+## The stance is where most of the silhouette change lives. The rig's arms are
+## stubby side-flippers on a box, so an arm alone moves few pixels; a sunk root, a
+## turned torso and staggered legs move the whole outline.
+func _build_charge() -> Animation:
+	var braced := {
+		"grip": Vector3(0, 8, 86), "root_y": -0.034, "root": Vector3(-6, -16, 0),
+		"torso": Vector3(-14, -30, 0), "arm_r": Vector3(0, -36, -100),
+		"arm_l": Vector3(0, 40, -46), "ant": Vector3(0, 28, 12),
+		"leg_l": Vector3(-16, 0, 0), "leg_r": Vector3(12, 0, 0),
+	}
+	# The breath: a little deeper and a little more coiled, then back. Small enough
+	# that no frame of the loop is a weaker read than any other — the whole point is
+	# that EVERY frame of this state is unmistakable.
+	var settle := braced.duplicate()
+	settle["root_y"] = -0.046
+	settle["torso"] = Vector3(-17, -33, 0)
+	settle["arm_r"] = Vector3(0, -38, -104)
+	settle["ant"] = Vector3(0, 32, 15)
+	var keys: Array = [
+		[0.0 * F, braced],
+		[21.0 * F, settle],
+		# Same pose as frame 0, so LOOP_LINEAR has nothing to jump across.
+		[CHARGE_LEN, braced],
+	]
+	return _pose_clip("charge", CHARGE_LEN, keys, true)
+
+
 func _build_slash_a() -> Animation:
 	# Overhead chop down the right flank. arm_r.z is the elevation: 0 is straight
 	# out sideways, negative is up, and it must not go far past 0 on the way down
@@ -228,11 +287,25 @@ func _build_slash_a() -> Animation:
 	# 2.3 m). arm_r.y carries the blade forward across the swing so it lands ahead
 	# of the player rather than beside them.
 	var keys: Array = [
-		[0.0 * F, {"grip": Vector3(0, 14, 62), "torso": Vector3(-4, -12, 0), "arm_r": Vector3(0, -18, -74),
-			"arm_l": Vector3(0, 16, -28), "ant": Vector3(0, 14, 8)}],
-		# Wind-up peak: blade vertical above the shoulder, body coiled back. The
-		# tip is measured at y 2.9, a metre clear of the knob.
-		[2.0 * F, {"grip": Vector3(0, 8, 88), "root_y": -0.018, "root": Vector3(-8, 0, 0),
+		# FRAME 0 IS THE WIND-UP PEAK, and it used to be frame 2. The reference is
+		# explicit: put idle at frame -3 and the anticipation pose at frame 0, so the
+		# contrast survives blending. It has to be frame 0 here for a harder reason
+		# too — the transition into an attack cross-fades over 0.05 s, so the frame the
+		# state machine first reports as `slash_a` is still mostly idle pose. With the
+		# peak two frames later that frame read as a character standing still with one
+		# arm slightly raised, which is exactly what a critic reported: "a forearm
+		# raised one body-width ... is not enough at speed". Blade vertical above the
+		# shoulder (tip measured at y 2.9, a metre clear of the head knob), chest
+		# coiled away, weight sunk onto a staggered stance. The hitbox key at frame 5
+		# has not moved, so no measured gameplay number changes.
+		[0.0 * F, {"grip": Vector3(0, 8, 90), "root_y": -0.026, "root": Vector3(-10, -14, 0),
+			"torso": Vector3(-18, -26, 0), "arm_r": Vector3(0, -34, -100),
+			"arm_l": Vector3(0, 34, -46), "ant": Vector3(0, 32, 14),
+			"leg_l": Vector3(-12, 0, 0), "leg_r": Vector3(-14, 0, 0)}],
+		# Two frames of hold, unwinding a fraction. Anticipation that arrives and then
+		# waits reads as weight; anticipation that arrives and leaves immediately reads
+		# as a twitch.
+		[2.0 * F, {"grip": Vector3(0, 8, 88), "root_y": -0.018, "root": Vector3(-8, -6, 0),
 			"torso": Vector3(-16, -20, 0), "arm_r": Vector3(0, -30, -96),
 			"arm_l": Vector3(0, 30, -42), "ant": Vector3(0, 30, 14),
 			"leg_r": Vector3(-10, 0, 0)}],
@@ -290,11 +363,16 @@ func _build_slash_b() -> Animation:
 	# cut spends its whole live window barely clear of the ribs. Direction of travel
 	# is a real difference between two swings; being invisible is not.
 	var keys: Array = [
-		[0.0 * F, {"grip": GRIP_CUT, "torso": Vector3(16, 26, 0), "arm_r": Vector3(0, 84, -32),
-			"arm_l": Vector3(0, -8, -2), "ant": Vector3(0, -26, -32)}],
-		# Wind-up: blade dropped low across the front, shoulders coiled the opposite
-		# way to slash_a's so the pair counter-rotate.
-		[2.0 * F, {"grip": Vector3(0, 10, 80), "root_y": -0.022, "root": Vector3(8, 0, 0),
+		# Frame 0 is the wind-up peak here too, for the reason spelled out in
+		# _build_slash_a: the first frame the state machine calls `slash_b` is still
+		# largely the pose it is blending out of, so the anticipation has to be waiting
+		# there already. Blade dropped low and back across the front, shoulders coiled
+		# the opposite way to slash_a's so the pair counter-rotate.
+		[0.0 * F, {"grip": Vector3(0, 10, 78), "root_y": -0.028, "root": Vector3(10, 14, 0),
+			"torso": Vector3(20, 34, 0), "arm_r": Vector3(0, 104, -14),
+			"arm_l": Vector3(0, -28, -26), "ant": Vector3(0, 24, -16),
+			"leg_l": Vector3(10, 0, 0), "leg_r": Vector3(-14, 0, 0)}],
+		[2.0 * F, {"grip": Vector3(0, 10, 80), "root_y": -0.022, "root": Vector3(8, 6, 0),
 			"torso": Vector3(18, 30, 0), "arm_r": Vector3(0, 96, -20),
 			"arm_l": Vector3(0, -24, -22), "ant": Vector3(0, 20, -14),
 			"leg_r": Vector3(-12, 0, 0)}],
@@ -346,8 +424,14 @@ func _build_spin() -> Animation:
 	# the same angle, so no frame of a two-revolution spin had a direction. Now the
 	# sword arm is up and swept forward and the off arm is down and tucked back.
 	var keys: Array = [
-		[0.0 * F, {"grip": Vector3(0, 20, 40), "torso": Vector3(0, 10, 0), "arm_r": Vector3(0, 30, -40),
-			"arm_l": Vector3(0, -10, -20), "ant": Vector3(0, 10, 0)}],
+		# Frame 0 is already coiled, and close to the `charge` clip's held pose so the
+		# spin continues out of the charge instead of standing up first. Same reasoning
+		# as slash_a: the frame the state machine first reports is still blending, so
+		# the anticipation must be waiting on frame 0 rather than arriving on frame 3.
+		[0.0 * F, {"grip": Vector3(0, 8, 86), "root_y": -0.040, "root": Vector3(-8, 22, 0),
+			"torso": Vector3(-12, 20, 0), "arm_r": Vector3(0, -34, -96),
+			"arm_l": Vector3(0, 34, -22), "ant": Vector3(0, 24, 10),
+			"leg_l": Vector3(-14, 0, 0), "leg_r": Vector3(-14, 0, 0)}],
 		# Crouch and coil, blade up. This is the frame that has to say "here it comes".
 		[3.0 * F, {"grip": Vector3(0, 8, 86), "root_y": -0.048, "root": Vector3(-8, 34, 0),
 			"torso": Vector3(-12, 26, 0), "arm_r": Vector3(0, -34, -92),
@@ -391,13 +475,13 @@ func _build_spin() -> Animation:
 
 ## Turn a pose list into the same ten transform tracks the glb clips use — same
 ## track set, so the AnimationTree can cross-fade between locomotion and attacks
-## without a limb popping back to rest mid-blend — plus the method tracks.
-func _assemble(name: String, length: float, keys: Array,
-		hit_on: float, hit_off: float, cancel: float, spin_ring := false) -> Animation:
+## without a limb popping back to rest mid-blend. No method tracks: see _assemble,
+## which adds those, and _build_charge, which is a held pose and wants none.
+func _pose_clip(name: String, length: float, keys: Array, loop: bool) -> Animation:
 	var a := Animation.new()
 	a.resource_name = name
 	a.length = length
-	a.loop_mode = Animation.LOOP_NONE  # an attack that loops is a bug
+	a.loop_mode = Animation.LOOP_LINEAR if loop else Animation.LOOP_NONE
 
 	var root_pos := _track(a, Animation.TYPE_POSITION_3D, N_ROOT)
 	var root_rot := _track(a, Animation.TYPE_ROTATION_3D, N_ROOT)
@@ -433,6 +517,14 @@ func _assemble(name: String, length: float, keys: Array,
 		a.rotation_track_insert_key(arm_r_rot, t, _q(pose.get("arm_r", Vector3.ZERO)))
 		a.rotation_track_insert_key(ant_rot, t, _q(pose.get("ant", Vector3.ZERO)))
 		a.rotation_track_insert_key(grip_rot, t, _q(pose.get("grip", GRIP_REST)))
+
+	return a
+
+
+## An attack: a pose clip plus the timing windows.
+func _assemble(name: String, length: float, keys: Array,
+		hit_on: float, hit_off: float, cancel: float, spin_ring := false) -> Animation:
+	var a := _pose_clip(name, length, keys, false)  # an attack that loops is a bug
 
 	# --- The windows. PRIOR-ART.md: these belong beside the animation. -------
 	var m := _track(a, Animation.TYPE_METHOD, ".")

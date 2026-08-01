@@ -1,4 +1,4 @@
-[gd_scene load_steps=49 format=3]
+[gd_scene load_steps=57 format=3]
 
 [ext_resource type="Script" path="res://actors/player/player.gd" id="1_player"]
 [ext_resource type="PackedScene" path="res://art/models/character.glb" id="2_character"]
@@ -19,6 +19,7 @@
 [ext_resource type="AudioStream" path="res://actors/player/audio/hit.tres" id="17_hit"]
 [ext_resource type="Script" path="res://actors/player/sword_trail.gd" id="18_trail"]
 [ext_resource type="Script" path="res://actors/player/spin_ring.gd" id="19_ring"]
+[ext_resource type="Script" path="res://actors/player/charge_ring.gd" id="20_chargering"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.4
@@ -82,14 +83,36 @@ resource_name = "blade_charged"
 shading_mode = 0
 albedo_color = Color(0.12, 0.9, 1, 1)
 
+; ALPHA_SCISSOR (transparency = 2), NOT ALPHA (1), and this one integer is the
+; whole fix for "the trail reads as a lighting artefact". Godot fills the depth and
+; normal-roughness buffers BEFORE the transparent pass, and
+; art/shaders/outline_post.gdshader reads only those two — so a transparency = 1
+; material can never be outlined, at any setting. In a world where every object
+; carries a 1.3 px black contour, the one shape without one reads as a rendering
+; fault. Scissored, the ribbon is in the opaque pass, writes depth, and inherits
+; the same contour as the grass.
+;
+; ALPHA_SCISSOR rather than ALPHA_HASH on purpose: a hash dithers by discarding
+; pixels, which punches holes in the DEPTH buffer, which makes the outline pass
+; emit black speckle across the whole ribbon. sword_trail.gd therefore never emits
+; partial vertex alpha; it fades geometrically instead.
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_trail"]
 resource_name = "sword_trail"
-transparency = 1
+transparency = 2
+alpha_scissor_threshold = 0.5
 shading_mode = 0
 vertex_color_use_as_albedo = true
 albedo_color = Color(1, 1, 1, 1)
 cull_mode = 2
 disable_receive_shadows = true
+
+; Width against age along the ribbon: 0 is the tail, 1 the newest sample at the
+; blade. Without a taper the ribbon is a parallelogram; with one it is a crescent.
+; The tail keeps 26% of the width rather than going to zero, because a true point
+; is one pixel wide and disappears before the outline can contour it.
+[sub_resource type="Curve" id="Curve_trail_width"]
+_data = [Vector2(0, 0.26), 0.0, 0.0, 0, 0, Vector2(0.45, 0.78), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0]
+point_count = 3
 
 ; `rings` is the subdivision of the MAIN circle and `ring_segments` the tube's
 ; cross-section, not the other way round. At rings = 4 this drew a diamond, which
@@ -100,11 +123,39 @@ outer_radius = 1.0
 rings = 32
 ring_segments = 6
 
+; Scissored for the same reason as the trail: transparency = 1 could never be
+; outlined. spin_ring.gd no longer animates opacity — it holds full strength and
+; then goes, which is what the reference material recommends anyway.
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ring"]
 resource_name = "spin_ring"
-transparency = 1
+transparency = 2
+alpha_scissor_threshold = 0.5
 shading_mode = 0
 albedo_color = Color(1, 0.5, 0.08, 1)
+cull_mode = 2
+disable_receive_shadows = true
+
+; The charge tell's ground ring. Authored at radius 1 so the script's scale IS the
+; radius, and slightly thicker in section than the spin's so it still reads at the
+; smaller settled radius.
+[sub_resource type="TorusMesh" id="TorusMesh_charge"]
+inner_radius = 0.78
+outer_radius = 1.0
+rings = 32
+ring_segments = 6
+
+; Deep teal, and deliberately DARKER than the grass it lies on (Rec.709 luminance
+; ~0.33 against grass 0.47) rather than brighter. The charged blade and its light
+; wash are the bright half of this tell; the ring is the dark half, so the pair
+; carries its own contrast instead of borrowing it from the background, and both
+; halves survive a greyscale check. Cyan-family, because cyan already means
+; "charged" here and orange already means "swinging" — two states, two hues.
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_charge_ring"]
+resource_name = "charge_ring"
+transparency = 2
+alpha_scissor_threshold = 0.5
+shading_mode = 0
+albedo_color = Color(0, 0.44, 0.57, 1)
 cull_mode = 2
 disable_receive_shadows = true
 
@@ -116,6 +167,11 @@ animation = &"walk"
 
 [sub_resource type="AnimationNodeAnimation" id="anim_jump"]
 animation = &"jump"
+
+; The charged-and-waiting pose. Loops, because it is held for as long as the
+; player holds the button.
+[sub_resource type="AnimationNodeAnimation" id="anim_charge"]
+animation = &"charge"
 
 [sub_resource type="AnimationNodeAnimation" id="anim_slash_a"]
 animation = &"slash_a"
@@ -136,6 +192,20 @@ xfade_time = 0.08
 switch_mode = 0
 advance_mode = 1
 
+; Almost a cut, and the number is measured rather than chosen for feel. The charge
+; threshold is a discrete event with an audible cue on the same frame, so the pose
+; wants to arrive with it — but more importantly, the AnimationTree will not START a
+; new travel while the current state is still fading in. A player who releases the
+; instant the chime plays therefore releases INTO this fade, and every frame of it
+; is added to the spin's wind-up: at 0.06 s the trace showed the travel to
+; spin_attack blocked for three frames and spin_windup measured 200 ms instead of
+; 150 ms. At 0.02 s the block is one frame. Traced frame by frame; see the report in
+; the commit that added the charge clip.
+[sub_resource type="AnimationNodeStateMachineTransition" id="trans_charge"]
+xfade_time = 0.02
+switch_mode = 0
+advance_mode = 1
+
 [sub_resource type="AnimationNodeStateMachineTransition" id="trans_attack_in"]
 xfade_time = 0.05
 switch_mode = 0
@@ -152,6 +222,8 @@ switch_mode = 0
 advance_mode = 1
 
 [sub_resource type="AnimationNodeStateMachine" id="StateMachine_loco"]
+states/charge/node = SubResource("anim_charge")
+states/charge/position = Vector2(160, 20)
 states/idle/node = SubResource("anim_idle")
 states/idle/position = Vector2(340, 100)
 states/jump/node = SubResource("anim_jump")
@@ -164,7 +236,7 @@ states/spin_attack/node = SubResource("anim_spin")
 states/spin_attack/position = Vector2(480, -200)
 states/walk/node = SubResource("anim_walk")
 states/walk/position = Vector2(620, 100)
-transitions = ["Start", "idle", SubResource("trans_loco"), "idle", "walk", SubResource("trans_loco"), "walk", "idle", SubResource("trans_loco"), "idle", "jump", SubResource("trans_jump"), "walk", "jump", SubResource("trans_jump"), "jump", "idle", SubResource("trans_jump"), "jump", "walk", SubResource("trans_jump"), "idle", "slash_a", SubResource("trans_attack_in"), "idle", "slash_b", SubResource("trans_attack_in"), "idle", "spin_attack", SubResource("trans_attack_in"), "walk", "slash_a", SubResource("trans_attack_in"), "walk", "slash_b", SubResource("trans_attack_in"), "walk", "spin_attack", SubResource("trans_attack_in"), "slash_a", "slash_b", SubResource("trans_combo"), "slash_b", "slash_a", SubResource("trans_combo"), "slash_a", "spin_attack", SubResource("trans_combo"), "slash_b", "spin_attack", SubResource("trans_combo"), "spin_attack", "slash_a", SubResource("trans_combo"), "slash_a", "idle", SubResource("trans_attack_out"), "slash_a", "walk", SubResource("trans_attack_out"), "slash_a", "jump", SubResource("trans_attack_out"), "slash_b", "idle", SubResource("trans_attack_out"), "slash_b", "walk", SubResource("trans_attack_out"), "slash_b", "jump", SubResource("trans_attack_out"), "spin_attack", "idle", SubResource("trans_attack_out"), "spin_attack", "walk", SubResource("trans_attack_out"), "spin_attack", "jump", SubResource("trans_attack_out")]
+transitions = ["Start", "idle", SubResource("trans_loco"), "idle", "walk", SubResource("trans_loco"), "walk", "idle", SubResource("trans_loco"), "idle", "jump", SubResource("trans_jump"), "walk", "jump", SubResource("trans_jump"), "jump", "idle", SubResource("trans_jump"), "jump", "walk", SubResource("trans_jump"), "idle", "slash_a", SubResource("trans_attack_in"), "idle", "slash_b", SubResource("trans_attack_in"), "idle", "spin_attack", SubResource("trans_attack_in"), "walk", "slash_a", SubResource("trans_attack_in"), "walk", "slash_b", SubResource("trans_attack_in"), "walk", "spin_attack", SubResource("trans_attack_in"), "slash_a", "slash_b", SubResource("trans_combo"), "slash_b", "slash_a", SubResource("trans_combo"), "slash_a", "spin_attack", SubResource("trans_combo"), "slash_b", "spin_attack", SubResource("trans_combo"), "spin_attack", "slash_a", SubResource("trans_combo"), "slash_a", "idle", SubResource("trans_attack_out"), "slash_a", "walk", SubResource("trans_attack_out"), "slash_a", "jump", SubResource("trans_attack_out"), "slash_b", "idle", SubResource("trans_attack_out"), "slash_b", "walk", SubResource("trans_attack_out"), "slash_b", "jump", SubResource("trans_attack_out"), "spin_attack", "idle", SubResource("trans_attack_out"), "spin_attack", "walk", SubResource("trans_attack_out"), "spin_attack", "jump", SubResource("trans_attack_out"), "idle", "charge", SubResource("trans_charge"), "charge", "idle", SubResource("trans_charge"), "walk", "charge", SubResource("trans_charge"), "charge", "walk", SubResource("trans_loco"), "jump", "charge", SubResource("trans_charge"), "charge", "jump", SubResource("trans_jump"), "charge", "slash_a", SubResource("trans_attack_in"), "charge", "slash_b", SubResource("trans_attack_in"), "charge", "spin_attack", SubResource("trans_attack_in"), "slash_a", "charge", SubResource("trans_attack_out"), "slash_b", "charge", SubResource("trans_attack_out"), "spin_attack", "charge", SubResource("trans_attack_out")]
 graph_offset = Vector2(180, -240)
 
 [sub_resource type="AnimationNodeTimeScale" id="TimeScale_loco"]
@@ -333,6 +405,7 @@ max_db = 0.0
 cast_shadow = 0
 material_override = SubResource("StandardMaterial3D_trail")
 script = ExtResource("18_trail")
+width_curve = SubResource("Curve_trail_width")
 blade_base = NodePath("../Rig/Character/character/root/torso/arm-right/SwordGrip/BladeBase")
 blade_tip = NodePath("../Rig/Character/character/root/torso/arm-right/SwordGrip/BladeTip")
 
@@ -347,6 +420,18 @@ extra_cull_margin = 8.0
 mesh = SubResource("TorusMesh_spin")
 surface_material_override/0 = SubResource("StandardMaterial3D_ring")
 script = ExtResource("19_ring")
+
+; The charge tell's ground ring. Sits marginally higher than the spin's so the two
+; can never z-fight if a charge is somehow live across a spin, and a child of the
+; Player rather than of Rig so it does not inherit the spin's two revolutions.
+[node name="ChargeRing" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.09, 0)
+visible = false
+cast_shadow = 0
+extra_cull_margin = 8.0
+mesh = SubResource("TorusMesh_charge")
+surface_material_override/0 = SubResource("StandardMaterial3D_charge_ring")
+script = ExtResource("20_chargering")
 
 [node name="CameraPivot" type="Node3D" parent="."]
 
