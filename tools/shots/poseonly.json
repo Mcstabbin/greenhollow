@@ -1,5 +1,5 @@
 {
-  "_comment": "POSE-ONLY variant of legibility.json: the identical fourteen frames with every VFX node switched off (hide_effects). This is PRIOR-ART-VISUAL.md's \"hide the body, keep only the weapon\" test run the other way round \u2014 hide the effects and keep the pose. A blind critic said six of seven effects read as props and that the one frame that worked was carried by the character: \"the sword raised vertically overhead is unambiguous body language, and the ring is a secondary decoration. This is the model to follow.\" So the animation has to survive on its own, and this set is how that is checked rather than asserted. Kept in step with legibility.json by construction: same positions, same camera, same capture_when, same expectations.",
+  "_comment": "GENERATED FROM legibility.json -- do not hand-edit; regenerate instead. The same frames with every VFX node disabled, so the question 'does the POSE alone read as an action' can be answered rather than argued. That question is the one a critic settled by saying \"legibility and correctness are inversely correlated -- the effects you can't miss are the ones that read as objects; the one that reads as a genuine action is carried by the pose.\" This file had drifted once: three weapon pairs were added to legibility.json and not mirrored here, so the pose test silently covered 7 pairs while the judged set had 10.",
   "shots": [
     {
       "_note": "CONTROL for this position. Waits until the player genuinely IS idle rather than assuming a frame count, so a shot that inherited a fall or a slide self-corrects instead of quietly captioning a walk cycle as idle.",
@@ -327,6 +327,166 @@
       "capture_offset": 12,
       "expect_state": "Attack",
       "expect_clip": "spin_attack",
+      "lock_camera": true,
+      "hide_effects": true
+    },
+    {
+      "_note": "CONTROL for the AXE pair, and the first shot holding anything other than the sword. The loadout is advanced by the F4 `cycle_item` action, which is the only way a shot list can change what the character is holding: tools/capture.gd reaches the game through InputMap and nothing else. The cycle is SEQUENTIAL and persists across shots, so the order of the shots below is load-bearing \u2014 one press per pair, in the idle frame, which is also why the action frame of each pair needs none. Loadout.cycle() records the item as found WITHOUT the found banner, or a 30-point line of text would sit across the bottom of every frame here.",
+      "name": "pair8_idle",
+      "player_position": [
+        13,
+        0.3,
+        -2
+      ],
+      "camera_yaw_deg": 0,
+      "warmup_frames": 60,
+      "inputs": [
+        {
+          "action": "cycle_item",
+          "press_at": 1,
+          "release_at": 3
+        }
+      ],
+      "capture_when": {
+        "state": "Idle",
+        "clip": "idle"
+      },
+      "capture_offset": 8,
+      "expect_state": "Idle",
+      "expect_clip": "idle",
+      "lock_camera": true,
+      "hide_effects": true
+    },
+    {
+      "_note": "The axe mid-swing, on the SAME clip the sword uses (slash_a) at 0.625x playback. Nothing about this frame is axe-specific code: the wind-up is 183 ms instead of 133 and the live window 167 instead of 100 because items/axe.tres asks for a slower rate. What a critic should be able to see is a top-heavy wedge rather than a straight blade, and a longer, deeper ribbon.",
+      "name": "pair8_action",
+      "player_position": [
+        13,
+        0.3,
+        -2
+      ],
+      "camera_yaw_deg": 0,
+      "warmup_frames": 50,
+      "inputs": [
+        {
+          "action": "attack",
+          "press_at": 1,
+          "release_at": 3
+        }
+      ],
+      "capture_when": {
+        "clip": "slash_a",
+        "live": true
+      },
+      "capture_offset": 4,
+      "expect_state": "Attack",
+      "expect_clip": "slash_a",
+      "expect_live": true,
+      "lock_camera": true,
+      "hide_effects": true
+    },
+    {
+      "_note": "CONTROL for the BOW pair.",
+      "name": "pair9_idle",
+      "player_position": [
+        16,
+        0.3,
+        -2
+      ],
+      "camera_yaw_deg": 0,
+      "warmup_frames": 60,
+      "inputs": [
+        {
+          "action": "cycle_item",
+          "press_at": 1,
+          "release_at": 3
+        }
+      ],
+      "capture_when": {
+        "state": "Idle",
+        "clip": "idle"
+      },
+      "capture_offset": 8,
+      "expect_state": "Idle",
+      "expect_clip": "idle",
+      "lock_camera": true,
+      "hide_effects": true
+    },
+    {
+      "_note": "THE HIGHEST-RISK FRAME IN THE SET, and the reason the set was extended. A drawn bow is a HELD POSE WITH NO MOTION, structurally identical to the charge frame a critic called the weakest here: 'only the blade's colour changed \u2014 if the glow had been absent I would have called it IDLE with confidence 5 and been wrong'. So the draw is carried by three things and none of them is a tint: both arms leaving the silhouette in OPPOSITE directions with the chest turned side-on, an opaque black-outlined arrow nocked on the string, and \u2014 at full draw only \u2014 the same hard-edged ground ring the sword's charge uses. capture_offset 44 puts the frame past the 500 ms draw and past the ring's 110 ms convergence, so this is a FULL draw; a partial one would be a weaker read by design and is the frame to add next if this one passes.",
+      "name": "pair9_action",
+      "player_position": [
+        16,
+        0.3,
+        -2
+      ],
+      "camera_yaw_deg": 0,
+      "warmup_frames": 50,
+      "inputs": [
+        {
+          "action": "attack",
+          "press_at": 1
+        }
+      ],
+      "capture_when": {
+        "clip": "bow_draw"
+      },
+      "capture_offset": 44,
+      "expect_state": "Aim",
+      "expect_clip": "bow_draw",
+      "lock_camera": true,
+      "hide_effects": true
+    },
+    {
+      "_note": "CONTROL for the SHIELD pair.",
+      "name": "pair10_idle",
+      "player_position": [
+        16,
+        0.3,
+        6
+      ],
+      "camera_yaw_deg": 0,
+      "warmup_frames": 60,
+      "inputs": [
+        {
+          "action": "cycle_item",
+          "press_at": 1,
+          "release_at": 3
+        }
+      ],
+      "capture_when": {
+        "state": "Idle",
+        "clip": "idle"
+      },
+      "capture_offset": 8,
+      "expect_state": "Idle",
+      "expect_clip": "idle",
+      "lock_camera": true,
+      "hide_effects": true
+    },
+    {
+      "_note": "Shield up. Also a held pose with no motion, and the same risk as the bow draw. The slab is raised ABOVE AND OUTSIDE THE RIGHT SHOULDER rather than held in front of the chest, which is deliberate: CLAUDE.md records that the only screen space an over-the-shoulder camera does not already own is above the head and outside the shoulders, and a 0.68 x 0.88 m board held in front of a 1.34 m torso is a board the camera looks THROUGH the character to see. With one equip slot this frame also has to answer 'what am I holding', because nothing else does.",
+      "name": "pair10_action",
+      "player_position": [
+        16,
+        0.3,
+        6
+      ],
+      "camera_yaw_deg": 0,
+      "warmup_frames": 50,
+      "inputs": [
+        {
+          "action": "shield",
+          "press_at": 1
+        }
+      ],
+      "capture_when": {
+        "state": "Block",
+        "clip": "block"
+      },
+      "capture_offset": 10,
+      "expect_state": "Block",
+      "expect_clip": "block",
       "lock_camera": true,
       "hide_effects": true
     }

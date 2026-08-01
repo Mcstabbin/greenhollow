@@ -75,6 +75,9 @@ func _ready() -> void:
 		_default_fov = float(_player.get("camera_fov"))
 	if _arm != null:
 		_default_arm_mask = _arm.collision_mask
+	if not _player_is_intact():
+		get_tree().quit(1)
+		return
 	_freeze_pickups()
 	_collect_effects()
 	if _arm != null:
@@ -255,6 +258,48 @@ func _save(name: String) -> void:
 		"state": state,
 	})
 	print("capture: wrote %s (%dx%d) %s" % [path, image.get_width(), image.get_height(), state])
+
+
+## Refuse to run if the character is not actually there.
+##
+## A null check on the player node is not enough, and this cost a real conclusion.
+## While a refactor left `player.tscn` pointing at scripts that did not exist, the
+## Player node still entered the tree and still group-registered — so the harness
+## happily wrote fourteen frames, complete with a `state=` readout, of a level with
+## no visible character in it. A measurement taken from those frames produced the
+## OPPOSITE of the truth and was acted on before being caught.
+##
+## Believable output from a broken scene is worse than a crash, so this asserts
+## there is renderable geometry with real extent, not merely a node.
+func _player_is_intact() -> bool:
+	var meshes := 0
+	var extent := AABB()
+	for node in _player.find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		if mi.mesh == null or not mi.visible:
+			continue
+		# Skip anything under the camera rig. The outline pass rides a fullscreen quad
+		# parented to the Camera3D with a huge extra_cull_margin, and counting it put
+		# this character's reported height at 4.07 m. A guard that prints a wrong
+		# number is the kind of thing this guard exists to catch.
+		if _pivot != null and _pivot.is_ancestor_of(mi):
+			continue
+		meshes += 1
+		var box := mi.get_aabb()
+		box.position += mi.global_position - _player.global_position
+		extent = box if meshes == 1 else extent.merge(box)
+
+	# 0.5 m is generous: the character stands 2.2 m and even a lone limb clears it.
+	# The failure being guarded against produced zero meshes, not a small one.
+	if meshes == 0 or extent.get_longest_axis_size() < 0.5:
+		printerr("capture: the player has %d visible mesh(es) spanning %.2f m —"
+			% [meshes, extent.get_longest_axis_size()]
+			+ " it is broken or failed to instantiate. Refusing to write frames,"
+			+ " because plausible frames of an absent character are worse than none.")
+		return false
+	print("capture: player intact — %d visible mesh(es), %.2f m tall"
+		% [meshes, extent.size.y])
+	return true
 
 
 ## Stop pickups from triggering, without hiding them.
