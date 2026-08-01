@@ -25,6 +25,9 @@ var _level: Node = null
 var _player: Node3D = null
 var _pivot: Node3D = null
 var _arm: SpringArm3D = null
+var _camera: Camera3D = null
+var _default_fov := 0.0
+var _default_arm_mask := 0
 var _out_dir := ""
 var _written: Array = []
 ## Shots whose actual state did not match what the shot list claimed. Any entry
@@ -67,6 +70,11 @@ func _ready() -> void:
 		return
 	_pivot = _player.get_node_or_null("CameraPivot") as Node3D
 	_arm = _player.get_node_or_null("CameraPivot/SpringArm3D") as SpringArm3D
+	_camera = _player.get_node_or_null("CameraPivot/SpringArm3D/Camera3D") as Camera3D
+	if _camera != null and _player.get("camera_fov") != null:
+		_default_fov = float(_player.get("camera_fov"))
+	if _arm != null:
+		_default_arm_mask = _arm.collision_mask
 	_freeze_pickups()
 	_collect_effects()
 	if _arm != null:
@@ -139,6 +147,25 @@ func _run_shot(shot: Dictionary) -> void:
 		_arm.spring_length = (float(shot["camera_distance"])
 			if shot.has("camera_distance") else _default_spring)
 
+	# Two things defeated the first version of `lock_camera`, and a critic proved it by
+	# template-matching static props between paired frames: 5 of 7 pairs were offset,
+	# one by 11 px across and 21 px down, and in one the camera was visibly CLOSER.
+	# Neither cause was the pivot.
+	#
+	#  - The SpringArm SHORTENS on collision, so an action that carries the character
+	#    into a bush pulls the camera in. Masking it to 0 fixes the distance.
+	#  - player.gd widens the FOV with speed (camera_fov_kick), and an attack drives
+	#    the character forward, so an action frame is genuinely zoomed relative to its
+	#    idle twin.
+	#
+	# Both are correct in play and fatal to a comparison. Set here rather than just
+	# before the frame, so the arm has ticks to settle before anything is captured.
+	if bool(shot.get("lock_camera", false)):
+		if _arm != null:
+			_arm.collision_mask = 0
+		if _camera != null and _default_fov > 0.0:
+			_camera.fov = _default_fov
+
 	# Walk the input timeline frame by frame.
 	#
 	# `capture_at` is a fixed frame number, which is hand-tuned arithmetic: the
@@ -187,11 +214,23 @@ func _run_shot(shot: Dictionary) -> void:
 	# what moves the camera, so locking any earlier does not help.
 	_lock_camera(shot)
 	var hidden := _hide_effects(shot)
+	# PAUSE before the draw. `_save` awaits frame_post_draw, and a physics tick landing
+	# in between lets _update_camera lerp the pivot straight back off its mark — which
+	# is why locking the pivot alone was not enough. Rendering continues while the tree
+	# is paused, so the frame still draws.
+	var locked := bool(shot.get("lock_camera", false))
+	if locked:
+		get_tree().paused = true
 	await _save(name)
+	if locked:
+		get_tree().paused = false
 	for node in hidden:
 		node.visible = true
 		node.process_mode = Node.PROCESS_MODE_INHERIT
 	_check_expectations(shot, name)
+	# Restore, so a locked shot cannot leak a disabled spring arm into the next one.
+	if _arm != null:
+		_arm.collision_mask = _default_arm_mask
 	_release_all()
 
 
@@ -302,6 +341,16 @@ func _hide_effects(shot: Dictionary) -> Array[Node3D]:
 func _lock_camera(shot: Dictionary) -> void:
 	if not bool(shot.get("lock_camera", false)) or _pivot == null:
 		return
+
+	# Pin the character back to the shot's spot first. Locking the camera alone still
+	# left 1-3 px of shift between paired frames, and the cause was not the camera: an
+	# attack drives the character forward a few centimetres, so the camera correctly
+	# followed a player who had genuinely moved. Horizontal only — Y stays wherever
+	# physics put it, or the capsule would hover or sink.
+	if shot.has("player_position"):
+		var want: Array = shot["player_position"]
+		var here := _player.global_position
+		_player.global_position = Vector3(float(want[0]), here.y, float(want[2]))
 	var height := 1.1
 	if _player.get("camera_target_height") != null:
 		height = float(_player.get("camera_target_height"))
