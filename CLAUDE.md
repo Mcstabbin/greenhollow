@@ -147,21 +147,111 @@ A repo whose last commit is day one is the failure signature.
   `.import` file to force a re-import — copying the texture alone is not enough.
 - `--import` does not notice a changed *external* dependency.
 - Kenney models import with standard shading; switch materials to toon to match.
+- **Typed node exports in a `.tscn` need `node_paths=PackedStringArray("field", …)`
+  in the node header.** Without it Godot stores the NodePath and never resolves
+  it: every reference arrives `null` and **nothing is printed**. Symptom was a
+  state machine that silently never left its first state. Found by packing the
+  same wiring in code and reading back what the engine writes.
+- **`art/models/character.glb` has no `Skeleton3D`.** The rig is seven plain
+  `Node3D`/`MeshInstance3D` nodes and the shipped clips are ordinary
+  `POSITION_3D`/`ROTATION_3D` tracks against node paths. Authoring new animation
+  is writing more of the same track type — no skinning, no bone mapping.
+- **Input → AnimationPlayer method track is three frames**: one for
+  `just_pressed`, two more for the AnimationTree advancing after the player in
+  the same tick. Keyframe method tracks three frames early and say so at the
+  constant, or the window opens late and every measurement is off.
+- **An attachment's transform must be keyed in *every* clip, including
+  locomotion.** Key it only in the attack clips and it snaps to whatever the last
+  clip left it at. The sword grip was cancelled by the idle clip posing
+  `arm-right` 32° down.
+- **New `class_name` globals do not resolve until an `--import` pass has run.**
+  A script that references one fails to parse until then, which reads as a typo.
+- **GDScript cannot infer a type through a loosely typed reference.**
+  `var x := player.max_speed` is a *parse error* when `player` is typed
+  `CharacterBody3D`, because `max_speed` is an `@export` the analyser cannot see.
+  Write the type out.
+- **Re-enabling `monitoring` on an `Area3D` makes it re-report areas already
+  overlapping it.** That is a feature for combat: it is what lets a second swing
+  hit a target the blade never physically left.
+- `--fixed-fps 60` decouples the physics step from wall time, so headless runs are
+  fast *and* deterministic. Without it, measured numbers drift with machine load.
+- **Headless has no renderer at all** — there is no headless screenshot, ever.
+  Screenshots require a real window, and `RenderingServer.frame_post_draw` is the
+  only moment the viewport texture holds a complete frame.
+- A windowed run inherits `player.gd`'s captured mouse and the real cursor
+  silently rotates the camera. Set `MOUSE_MODE_VISIBLE` **every frame**, not once
+  — the pause menu and the player both touch it.
+- Drop a `.gdignore` in any directory of generated PNGs, or the engine imports
+  your own screenshots as game textures on every `--import`.
+- `N resources still in use at exit` from a headless run is the `Audio` autoload's
+  pooled players holding stream playbacks. Pre-existing and benign — confirmed
+  against a clean checkout. Don't chase it.
+
+## Readability: what the critics keep catching
+
+Found by putting real frames in front of fresh-context critics that had no access
+to the code. Each of these failed a round before it was understood.
+
+- **Judge from the gameplay camera, never a showcase angle.** An over-the-shoulder
+  camera at torso height owns the entire volume in front of the chest. Staged
+  three-quarter angles made a swing look great while the same swing was
+  *completely invisible* in play — no blade, no trail, indistinguishable from
+  idle. Every action shot goes in the shot list at the default camera first.
+- **An action must break the silhouette in the direction the camera looks from.**
+  The only screen space the body does not already own is above the head and
+  outside the shoulders. An overhead chop reads from behind; a chest-height
+  horizontal cut does not.
+- **Never put a light element on a light element.** White blade + white trail +
+  white torso merge into one shape. Effects get a saturated off-palette hue
+  (cyan, hot orange) that appears nowhere else in the world, so they read against
+  grass, character and treeline alike.
+- **Symmetry kills motion.** A pose with both arms out, shot front-on, reads as a
+  T-pose holding a prop rather than as a spin. Asymmetry is what says "moving".
+- **A front-on camera is the worst choice for a horizontal arc** — the motion
+  travels toward and away from the lens, so its largest, fastest part compresses
+  to nothing.
+- **Flash the empty part too.** A damage flash applied only to the *filled*
+  portion of a meter is invisible when almost nothing is left to flash — it fails
+  on precisely the hits that matter most.
+- **State changes should converge, not appear.** A reticle that snaps on reads as
+  a HUD element; one that closes onto its target over ~110 ms reads as the game
+  locking on, and communicates it in a single still frame.
+- **Composition works against the action here.** The treeline is the
+  highest-contrast, most heavily outlined region of every frame, and fights
+  happen in a flat low-contrast green field below it. The eye goes to scenery.
+  Unresolved — a lighting/composition pass owes this an answer.
+- **The character's head sits above the torso with a visible gap**, so it reads as
+  floating on a stalk rather than as a style choice. Spotted independently by a
+  critic and by a capture review.
 
 ## Layout
 
 ```
-actors/player/     player.tscn + player.gd (controller, camera, anim states)
-autoload/          GameState singleton
-components/        Interactable base
+actors/player/     player.gd + player.tscn, the gameplay state machine
+                   (player_*_state.gd), sword hitbox and trail, generated
+                   player_anims.tres, procedural combat sfx under audio/
+autoload/          GameState and Audio singletons
+components/        Interactable base, LockOnTarget marker
 items/             rupee, chest, sign, gate
+addons/            vendored, licence committed alongside:
+                   health_hitbox_hurtbox (MIT) — Health/HitBox3D/HurtBox3D
 art/materials/     shared toon StandardMaterial3D resources
 art/models/        .glb assets (Kenney, CC0/MIT)
-art/shaders/       outline_post.gdshader (screen-space edge detect)
+art/shaders/       outline_post.gdshader (screen-space edge detect), foliage, water
 world/rooms/       level scenes
-tools/             level generators
-ui/                HUD, debug overlay
+tools/             build_clearing.gd (level), build_combat_anims.gd (animation),
+                   probe.tscn (headless measurement), capture.tscn (screenshots),
+                   shots/*.json (capture shot lists), out/ (generated, gitignored)
+ui/                HUD, hearts, lock-on reticle, pause menu, debug overlay
+refs/              reference frames for the gauntlet loop. GITIGNORED, never
+                   committed, never traced or transcribed. See refs/README.md
+.claude/skills/    gauntlet — the quality loop: prompt, critic contract,
+                   feel rubric with bands, prior art already read
 ```
+
+`GameState` is deliberately thin and its header says why. Health lives there only
+as a projection of the player's `Health` component so the HUD has one thing to
+listen to; the component stays authoritative. Resist adding anything else.
 
 Art direction: flat colour, toon-ish shading, black outlines. No PBR, no textures
 beyond the Kenney colormap atlas. Avoid SDFGI, SSR and volumetrics — the target
