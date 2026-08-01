@@ -20,6 +20,7 @@
 [ext_resource type="Resource" path="res://items/axe.tres" id="18_axe"]
 [ext_resource type="Resource" path="res://items/bow.tres" id="19_bow"]
 [ext_resource type="Resource" path="res://items/shield.tres" id="20_shield"]
+[ext_resource type="PackedScene" path="res://actors/dummy/target_dummy.tscn" id="21_dummy"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_uixu3"]
 sky_top_color = Color(0.32, 0.58, 0.88, 1)
@@ -9931,6 +9932,41 @@ mesh = SubResource("ArrayMesh_oxpul")
 surface_material_override/0 = SubResource("StandardMaterial3D_dhnqt")
 surface_material_override/1 = SubResource("StandardMaterial3D_sca2q")
 surface_material_override/2 = SubResource("StandardMaterial3D_xctnw")
+
+; THE SPARRING GROUND. Two straw dummies on the flat west of the campfire — the first
+; lockable, hittable things in this world, and the reason lock-on is playable rather
+; than merely implemented.
+;
+; EVERY NUMBER HERE IS MEASURED, and the placement went through three wrong answers
+; before this one. A raycast sweep of the clearing puts flat ground at y=0 across
+; x -6..12 / z 0..6 and x -6..4 / z 6..18, with the village plateau at 3.4 m taking
+; x 9..13 / z 7..11, the lookout at 3.9 m taking x <= -8, and the river trench at
+; -0.7 m taking z -2..-6. Both dummies also drop themselves onto whatever is under
+; them on load, so a Y here is a starting point rather than a claim.
+;
+; What ruled out the first two spots was not the ground but the CAMERA. A pair at
+; (9.5, 3) and (12, 4) looked ideal until the sight-line from the camera eye to the
+; nearer one was traced and came back blocked by House3's collision body; a pair at
+; (5, 1) and (8, 2.5) locked and framed correctly but a village house then filled the
+; right third of the photographed frame.
+;
+; The third consideration is why they are up HERE, at z 13-15.5, rather than in the
+; middle of the field. All twenty existing legibility shots stand at z <= 12.5 and
+; look down -Z, so anything at z >= 13 is behind every one of their cameras — checked
+; per shot, including the 5 m sight-line from the spawn shot's own eye at (2.5, 17.67),
+; where both dummies fall 54 and 64 degrees off axis. Adding an actor to a hand-edited
+; level should not silently change twenty frames that have already been judged.
+;
+; Their SEPARATION is deliberate and it is on display. From the shot position south of
+; them, the NEARER dummy sits further from the centre of frame than the further one, so
+; pressing target locks the one 7.1 m away rather than the one 4.8 m away — the visible
+; proof that selection is screen-space distance from the centre of frame and never 3D
+; range. tools/probe.gd asserts the same thing against targets it builds itself.
+[node name="TargetDummy_north" parent="World/Gameplay" instance=ExtResource("21_dummy")]
+transform = Transform3D(0.9781476, 0, 0.20791169, 0, 1, 0, -0.20791169, 0, 0.9781476, -2, 0, 15.5)
+
+[node name="TargetDummy_west" parent="World/Gameplay" instance=ExtResource("21_dummy")]
+transform = Transform3D(0.8660254, 0, -0.5, 0, 1, 0, 0.5, 0, 0.8660254, -4, 0, 13)
 
 [node name="Rupee" type="Area3D" parent="World/Gameplay" unique_id=41834591]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.6, 0, 8.2)

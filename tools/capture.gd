@@ -119,6 +119,13 @@ func _process(_delta: float) -> void:
 func _run_shot(shot: Dictionary) -> void:
 	var name := String(shot.get("name", "unnamed"))
 	_release_all()
+	# A Z-target lock is a TOGGLE and it survives a shot, so without this the frame
+	# after a locked one inherits the lock, its framing and its reticle — and a control
+	# frame that is quietly still locked on is a mislabelled frame, which is the exact
+	# class of silent failure `_check_expectations` exists to catch.
+	var lockon: Node = _player.get_node_or_null("LockOn") if _player != null else null
+	if lockon != null:
+		lockon.call("release")
 
 	# Place the player, if the shot asks for a specific spot.
 	if shot.has("player_position"):
@@ -390,6 +397,16 @@ func _hide_effects(shot: Dictionary) -> Array[Node3D]:
 ##
 ## Deliberately opt-in: `combat.json` wants the real lagging camera, because that
 ## is what a player sees. `legibility.json` wants determinism.
+##
+## `camera_from_game` is the escape hatch for actions that MOVE THE CAMERA ON PURPOSE
+## — a Z-target lock, which yaws round onto the target and solves its own pitch, and a
+## bow draw, which brings the rig over the shoulder. For those, everything below is
+## wrong: pinning yaw to the shot's number and pitch to the rig's default would undo
+## the exact thing the frame is meant to show, and it would do it silently, because
+## the tree is paused before the draw so nothing can put it back. So a
+## `camera_from_game` shot keeps the lag-killing (player pinned, pivot snapped onto
+## the position the game itself computed) and gives up the angle-pinning. Its paired
+## control has to state the same framing by hand — see the notes in legibility.json.
 func _lock_camera(shot: Dictionary) -> void:
 	if not bool(shot.get("lock_camera", false)) or _pivot == null:
 		return
@@ -403,10 +420,23 @@ func _lock_camera(shot: Dictionary) -> void:
 		var want: Array = shot["player_position"]
 		var here := _player.global_position
 		_player.global_position = Vector3(float(want[0]), here.y, float(want[2]))
+
 	var height := 1.1
 	if _player.get("camera_target_height") != null:
 		height = float(_player.get("camera_target_height"))
-	_pivot.global_position = _player.global_position + Vector3.UP * height
+	var offset := Vector3.UP * height
+	var from_game := bool(shot.get("camera_from_game", false))
+	if from_game:
+		# The pivot is not simply above the player for these: a lock lifts it and the
+		# aim rig slides it out over the shoulder. Take the offset the game computed
+		# for itself, so the lag still dies but the rig survives.
+		var wanted: Variant = _player.get("camera_pivot_target")
+		if wanted is Vector3 and (wanted as Vector3) != Vector3.ZERO:
+			offset = (wanted as Vector3) - _player.global_position
+	_pivot.global_position = _player.global_position + offset
+
+	if from_game:
+		return
 	_pivot.rotation.y = deg_to_rad(float(shot.get("camera_yaw_deg", 0.0)))
 	if _arm != null:
 		_arm.rotation.x = (deg_to_rad(float(shot["camera_pitch_deg"]))
@@ -414,7 +444,7 @@ func _lock_camera(shot: Dictionary) -> void:
 
 
 ## Is the player in the state a `capture_when` block is waiting for?
-## Keys are the same three the expectations use: state, clip, live.
+## Keys are the same ones the expectations use: state, clip, live, charged, locked.
 func _matches(when: Dictionary) -> bool:
 	var probes := {
 		"state": "get_state_name",
@@ -423,11 +453,28 @@ func _matches(when: Dictionary) -> bool:
 		"charged": "is_attack_charged",
 	}
 	for key in when:
+		if key == "locked":
+			if str(_is_locked()).to_lower() != str(when[key]).to_lower():
+				return false
+			continue
 		if not probes.has(key) or not _player.has_method(probes[key]):
 			return false
 		if str(_player.call(probes[key])).to_lower() != str(when[key]).to_lower():
 			return false
 	return true
+
+
+## Does the player hold a Z-target lock?
+##
+## Read off the component rather than through a `Player` method on purpose:
+## `.gdlintrc` pins that file's public method count as a RATCHET — the 25th public
+## method fails CI — and a readout for a screenshot harness is not what that budget
+## is for. `tools/probe.gd` reaches for the same node the same way.
+func _is_locked() -> bool:
+	if _player == null:
+		return false
+	var lockon: Node = _player.get_node_or_null("LockOn")
+	return lockon != null and bool(lockon.call("is_locked"))
 
 
 ## Assert that the frame is what the shot list says it is.
@@ -442,6 +489,10 @@ func _matches(when: Dictionary) -> bool:
 ## declares one and misses it is recorded as a failure and the run exits non-zero,
 ## so a mislabelled set can never reach a critic.
 func _check_expectations(shot: Dictionary, name: String) -> void:
+	if shot.has("expect_locked"):
+		if str(_is_locked()).to_lower() != str(shot["expect_locked"]).to_lower():
+			_failures.append("%s: expected locked=%s but got %s"
+				% [name, shot["expect_locked"], _is_locked()])
 	var checks := {
 		"expect_state": ["get_state_name", "state"],
 		"expect_clip": ["get_anim_state", "clip"],
@@ -477,6 +528,7 @@ func _player_state() -> String:
 		parts.append("live=%s" % _player.call("is_attack_hitbox_active"))
 	if _player.has_method("is_attack_charged"):
 		parts.append("charged=%s" % _player.call("is_attack_charged"))
+	parts.append("locked=%s" % _is_locked())
 	var tree := _player.get_node_or_null("AnimationTree") as AnimationTree
 	if tree != null:
 		var playback: Variant = tree.get("parameters/StateMachine/playback")

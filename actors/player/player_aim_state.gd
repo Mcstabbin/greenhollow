@@ -73,6 +73,12 @@ func enter(_previous: StringName) -> void:
 	_shot_elapsed = 0.0
 	player.rig.rotation.y = player.camera_pivot.rotation.y + PI
 	player.play_anim(&"bow_draw", 1.0)
+	# THE FOURTH CUE, and the only one that is not on the character: the camera comes
+	# over the shoulder. Everything above was fought for against a camera sitting
+	# directly behind the draw, where the draw axis IS the view axis and retraction,
+	# string and arrow all foreshorten to nothing — a limit the previous builder
+	# measured and named as unfixable from the pose alone. See Player.camera_shoulder.
+	player.camera_shoulder = 1.0
 
 	if player.loadout.ammo <= 0:
 		# An empty bow draws nothing. Better to say so than to mime a full shot: an
@@ -83,6 +89,7 @@ func enter(_previous: StringName) -> void:
 
 
 func exit() -> void:
+	player.camera_shoulder = 0.0
 	_clear_tell()
 	if _arrow != null:
 		# Only ever the UNFIRED arrow: a launched one was already reparented out of the
@@ -206,11 +213,10 @@ func _release() -> void:
 ## lock-on system yet. It is the direction the CHARACTER faces — which the strafe above
 ## has already slaved to the camera — pitched up slightly to pay for the arrow's droop.
 ##
-## The assist on top is dormant rather than speculative: `LockOnTarget` exists
-## (components/lockon_target.gd), it sits on collision layer 9, and this finds it with a
-## shape query rather than by walking the scene tree. With no enemies in the world the
-## query returns nothing and the fallback is what ships. When lock-on lands, this is
-## already connected.
+## The assist on top is no longer dormant. A HELD LOCK wins outright: if the player has
+## Z-targeted something, that is the thing being shot at and no scoring is needed. The
+## shape query below is the fallback for shooting from the hip, and it stays because
+## most shots are taken without a lock.
 func _aim_direction(bow: RangedWeapon) -> Vector3:
 	var facing := player.rig.global_basis.z
 	facing.y = 0.0
@@ -232,10 +238,13 @@ func _aim_direction(bow: RangedWeapon) -> Vector3:
 	return aim.lerp(to_target, bow.lockon_assist * falloff).normalized()
 
 
-## The nearest lock-on marker that is roughly where the player is pointing, or null.
-## Layer 9 is `lockon_target`; the query collides with areas only, because that is what a
-## marker is.
+## The lock-on target if there is one, and otherwise the nearest marker roughly where the
+## player is pointing. Layer 9 is `lockon_target`; the query collides with areas only,
+## because that is what a marker is.
 func _best_target(bow: RangedWeapon, aim: Vector3) -> LockOnTarget:
+	if player.lockon.is_locked():
+		return player.lockon.target
+
 	var space := player.get_world_3d().direct_space_state
 	var shape := SphereShape3D.new()
 	shape.radius = bow.assist_range

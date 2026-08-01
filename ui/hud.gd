@@ -1,6 +1,7 @@
 extends CanvasLayer
 ## Hearts, rupee/key counters, the interaction prompt, and a message banner.
 
+@onready var _reticle: LockOnReticle = $Reticle
 @onready var _hearts: HeartRow = $Hearts
 @onready var _rupees: Label = $Counters/Rupees
 @onready var _keys: Label = $Counters/Keys
@@ -9,6 +10,7 @@ extends CanvasLayer
 @onready var _message: Label = $Message
 
 var _msg_timer := 0.0
+var _lockon: LockOnSystem = null
 var _loadout: Loadout = null
 var _equipped: ItemData = null
 var _ammo := -1
@@ -27,6 +29,7 @@ func _ready() -> void:
 	_message.text = ""
 	_message.modulate.a = 0.0
 	_sync_loadout()
+	_connect_lockon()
 
 
 ## Wired by the player, which owns the slot. Pushed in rather than looked up here for the
@@ -46,6 +49,34 @@ func bind_loadout(loadout: Loadout) -> void:
 	loadout.ammo_changed.connect(_on_ammo)
 	if is_node_ready():
 		_sync_loadout()
+
+
+## Wired by the player, exactly as `bind_loadout` is and for the same reason: the HUD
+## is handed what it needs rather than hunting the scene tree for it.
+##
+## Two signals and no polling — the reticle is told which target to draw over and told
+## when to stop. It does the rest itself, including hiding when the target passes behind
+## the camera and releasing itself if the target dies between frames.
+##
+## Deferred through `_lockon` for the same load-bearing reason `bind_loadout` guards on
+## `is_node_ready`: the player and the HUD are separate scenes in one level and the
+## player's `_ready` runs first, so `@onready var _reticle` is still null when this is
+## called. The first version connected straight through and crashed on the null.
+func bind_lockon(lockon: LockOnSystem) -> void:
+	_lockon = lockon
+	if is_node_ready():
+		_connect_lockon()
+
+
+func _connect_lockon() -> void:
+	if _lockon == null or _lockon.locked.is_connected(_reticle.set_target):
+		return
+	_lockon.locked.connect(_reticle.set_target)
+	_lockon.released.connect(_on_lock_released)
+
+
+func _on_lock_released() -> void:
+	_reticle.set_target(null)
 
 
 func _sync_loadout() -> void:

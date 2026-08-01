@@ -24,6 +24,7 @@
 [ext_resource type="Script" path="res://actors/player/sword_trail.gd" id="18_trail"]
 [ext_resource type="Script" path="res://actors/player/charge_ring.gd" id="20_chargering"]
 [ext_resource type="Shader" path="res://art/shaders/ground_ring.gdshader" id="21_groundring"]
+[ext_resource type="Script" path="res://components/lockon_system.gd" id="25_lockon"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.4
@@ -318,9 +319,14 @@ nodes/TimeScale/node = SubResource("TimeScale_loco")
 nodes/TimeScale/position = Vector2(440, 120)
 node_connections = [&"output", 0, &"TimeScale", &"TimeScale", 0, &"StateMachine"]
 
+; collision_mask 9 = layer 1 (world) + layer 4 (enemy_body), so you bump into a
+; creature instead of walking through it. The SpringArm deliberately keeps mask 1:
+; if an enemy body could shorten the arm, standing next to one would yank the camera
+; into the player's head, and "both player and target on screen in 100% of locked
+; frames" is the one lock-on figure REFERENCE.md calls non-negotiable.
 [node name="Player" type="CharacterBody3D" groups=["player"]]
 collision_layer = 2
-collision_mask = 1
+collision_mask = 9
 script = ExtResource("1_player")
 blade_live_material = SubResource("StandardMaterial3D_blade_live")
 blade_charged_material = SubResource("StandardMaterial3D_blade_charged")
@@ -353,6 +359,16 @@ script = ExtResource("6_loadout")
 grip = NodePath("../Rig/Character/character/root/torso/arm-right/SwordGrip")
 starting_item = ExtResource("7_sword")
 catalogue = Array[ItemData]([ExtResource("7_sword"), ExtResource("22_axe"), ExtResource("23_bow"), ExtResource("24_shield")])
+
+; Z-targeting. The detection sphere is built in code and sized from `break_range`,
+; so the volume and the retention range can never disagree; `body` and `camera` are
+; assigned by player.gd's _ready rather than exported here, because the component is
+; written against a plain Node3D and a Camera3D and must not learn what a Player is.
+[node name="LockOn" type="Area3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+collision_layer = 0
+collision_mask = 256
+script = ExtResource("25_lockon")
 
 [node name="Rig" type="Node3D" parent="."]
 

@@ -57,9 +57,25 @@ Or open `project.godot` in the editor and press F5.
 | Left mouse | Attack — tap to swing, hold to charge; with the bow, hold to draw and release to loose |
 | Right mouse | Guard, while the shield is held |
 | E | Interact |
+| Q / right stick click | Z-target the nearest thing you are looking at; press again to let go. While locked, the look axis switches target instead of moving the camera |
 | Esc | Pause |
 | F3 | Debug overlay |
 | F4 | Cycle the equipped item (development aid, and the only way the screenshot harness can change weapons) |
+
+**Z-targeting.** Two straw dummies stand in the sparring ground west of the
+campfire; press Q and the camera swings behind you, frames the target a quarter of
+the way down the screen with you low beneath it, and holds it there while you
+strafe. Movement is rotated into *target* space, so pushing sideways orbits.
+
+Two things follow from having a target and both are the systemic answer to a
+problem no amount of VFX could fix. **Attacks rotate onto the target** — measured
+at 0.0 degrees of facing error against 45.0 without a lock — which is God of War
+2018's answer to actions the camera cannot see: a signpost-sized prop placed on
+the sight-line covers 9 of 9 sampled points along the blade unlocked, and 0 of 9
+locked. And **the bow gets an over-the-shoulder camera**, because from directly
+behind the character the draw axis *is* the view axis: the nocked arrow's
+retraction covered 18 px of screen and now covers 49, with the bow itself 2.6x
+larger.
 
 **One equip slot.** Sword, axe, bow and shield come out of chests, and the newest
 thing replaces the old — so holding the shield means holding *only* the shield,
@@ -72,14 +88,19 @@ there is no axe-shaped branch anywhere in the player code.
 
 ```
 actors/player/     controller, camera rig, animation state machine
+actors/dummy/      the straw practice dummy — the shape an enemy should follow
 autoload/          GameState singleton (rupees, keys, opened chests)
-components/        Interactable base, Loadout (the one equip slot), lock-on marker
+components/        Interactable base, Loadout (the one equip slot),
+                   lock-on marker and the lock-on system
 items/             sword/axe/bow/shield definitions, arrow, rupee, chest, sign, gate
                    weapons/ — the generated weapon scenes
 art/               models, shared toon materials, outline shader
 world/rooms/       level scenes
 tools/             build_clearing.gd — generates the level scene
-ui/                HUD and debug overlay
+                   probe.gd + probe_lockon.gd — headless measurement
+                   capture.gd, shots/ — screenshots; gen_poseonly.py regenerates
+                   the effects-off shot list from the legibility one
+ui/                HUD, lock-on reticle and debug overlay
 ```
 
 ### About the level generator

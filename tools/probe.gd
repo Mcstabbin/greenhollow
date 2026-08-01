@@ -17,11 +17,20 @@ const LEVEL := "res://world/rooms/greenhollow_clearing.tscn"
 const BEGIN := "##PROBE-BEGIN##"
 const END := "##PROBE-END##"
 
+## The lock-on suite lives in its own file. With it inlined this one reached 1558
+## lines against `.gdlintrc`'s 1200 ceiling, and that ceiling exists so no second file
+## the size of the level generator gets licensed by accident. See the header of
+## probe_lockon.gd; the seam it reaches through is the small public API at the bottom
+## of this file, so nothing about the harness is duplicated.
+const LockOnSuite := preload("res://tools/probe_lockon.gd")
+
 ## Every action the harness might hold. Released between measurements so one
 ## test can never leak a stuck input into the next.
 const ALL_ACTIONS: PackedStringArray = [
 	"move_forward", "move_back", "move_left", "move_right",
 	"jump", "interact", "attack", "target", "shield", "roll", "cycle_item",
+	# The look axis, because while locked on it is what switches target.
+	"cam_left", "cam_right",
 ]
 
 const ITEM_SWORD := "res://items/sword.tres"
@@ -58,12 +67,15 @@ func _ready() -> void:
 			await _suite_combat()
 		"weapons":
 			await _suite_weapons()
+		"lockon":
+			await LockOnSuite.new(self).run()
 		"all":
 			await _suite_movement()
 			await _suite_combat()
 			await _suite_weapons()
+			await LockOnSuite.new(self).run()
 		_:
-			_fail("unknown suite '%s' — known: movement, combat, weapons, all" % suite)
+			_fail("unknown suite '%s' — known: movement, combat, weapons, lockon, all" % suite)
 			return
 
 	_emit(suite)
@@ -799,3 +811,51 @@ func _arg(key: String, fallback: String) -> String:
 		if raw.begins_with("--%s=" % key):
 			return raw.split("=", true, 1)[1]
 	return fallback
+
+
+# --- The seam tools/probe_lockon.gd reaches through -----------------------
+#
+# Everything stateful stays here: the level, the player, the frame pump, the
+# measurement list. These ten wrappers exist so a suite can live in another file
+# without either duplicating that plumbing or reaching into private members — the
+# alternative was `suite._p._add(...)`, which gdlint rightly objects to and which
+# would have made the split look like a workaround instead of an interface.
+
+func player() -> CharacterBody3D:
+	return _player
+
+
+func level() -> Node:
+	return _level
+
+
+func add(measurement: String, value: float, unit: String, note: String) -> void:
+	_add(measurement, value, unit, note)
+
+
+func ms(frames: int) -> float:
+	return _ms(frames)
+
+
+func frames(count: int) -> void:
+	await _frames(count)
+
+
+func frames_until(test: Callable, timeout_frames: int) -> int:
+	return await _frames_until(test, timeout_frames)
+
+
+func reset() -> void:
+	await _reset()
+
+
+func release_all() -> void:
+	_release_all()
+
+
+func equip(loadout: Loadout, path: String) -> void:
+	await _equip(loadout, path)
+
+
+func swing_once() -> void:
+	await _swing_once()

@@ -113,7 +113,7 @@ to press a button or render a frame from outside the engine, so these are the
 tooling the rest of Rule 3 assumes:
 
 - `tools/probe.tscn` — headless, scene-based, drives input and prints measured
-  numbers as JSON. `--suite=<name>`.
+  numbers as JSON. `--suite=<name>`: `movement`, `combat`, `weapons`, `lockon`, `all`.
 - `tools/capture.tscn` — windowed, releases the mouse so the real cursor cannot
   rotate the camera, saves PNGs from a JSON shot list. `--shots=<name>`.
 
@@ -299,6 +299,48 @@ A repo whose last commit is day one is the failure signature.
   foreshortened to nothing, and a bow's silhouette is a 3-5 px line whichever way you look at
   it. What is left is the pose, a ground mark, and tinting the limbs so the line is visible
   at all. The real fix is an over-the-shoulder aim camera.
+- **`get_viewport().size` is 64x64 under `--headless`; the thing every screen-space
+  measurement actually wants is `get_visible_rect().size`, which is the project's
+  1280x720.** `unproject_position` and `is_position_in_frustum` both work fine headless
+  and both use the visible rect — so reading `size` instead would have made every
+  screen-space number in the lock-on suite wrong by a factor of twenty while still
+  looking plausible. There is no renderer, but there is a camera, and its arithmetic is
+  real.
+- **The level is wrapped in an invisible `Bounds` StaticBody on the WORLD layer at
+  ±24.5, and it blocks camera sight-lines.** Irrelevant in play, because the SpringArm
+  masks the world layer too and simply shortens against it — but `tools/capture.gd`'s
+  `lock_camera` sets the arm's mask to 0 so paired frames keep the same distance, which
+  pushes the eye *through* the wall. Every ray from there back into the level is then
+  blocked, so a Z-target lock refuses to acquire. Cost: two rounds of shot placement
+  north of the play area before the ray was printed.
+- **An `Interactable`'s collision shape is a 2.6 m interaction TRIGGER, not the prop.**
+  Signs, chests and gates all carry one, centred on the post and large enough that the
+  player stands inside it. Any "is this prop in the way" question answered with a
+  physics query against layer 3 therefore answers *yes, always*. Also
+  `PhysicsRayQueryParameters3D` defaults `collide_with_areas` to **false**, so the first
+  version of the same query answered *no, always*. Two opposite wrong answers from the
+  same idea; the question was screen-space overlap all along.
+- **Enemy bodies belong on layer 4, not layer 1.** A creature on the world layer blocks
+  the lock-on sight-line to *its own chest* (the aim point is inside the collision
+  shape, so a ray from outside always terminates on it) and shortens the player's
+  SpringArm on contact, which yanks the camera into the character's head exactly when
+  standing next to something. The player's own mask carries layer 4 so you still bump
+  into them.
+- **A solved camera angle is a lagging feedback loop, not a lerp toward a fixed value,
+  and it settles at roughly half its nominal rate.** The locked pitch re-derives its
+  target every frame from where the eye currently is, and pitching the arm moves the
+  eye — so the goal retreats as the camera approaches it. `1 - exp(-8*delta)` should
+  reach 90% in `ln(10)/8` = 288 ms and measured **633**; rate 14 measured 417 and 18
+  measured 367. Solve-then-smooth loops need their rate measured, never derived.
+- **`capture_when` ends a shot's input timeline the instant it matches**, so a shot that
+  needs two presses at different frames cannot use it. `{"state": "Idle"}` is true on
+  frame 1, which silently swallowed the second of two `cycle_item` presses and left the
+  wrong weapon in hand — visible only as the *next* shot reaching the wrong clip. Such a
+  shot wants `capture_at` plus `expect_*`, which is where the real guard lives anyway.
+- **A `RefCounted` has no `get_tree()`**, and GDScript cannot infer a type through a
+  loosely-typed harness reference any more than through a `CharacterBody3D` one — both
+  bite the moment a probe suite moves into its own file. Write the types out, and reach
+  the tree through the node you were handed.
 - **`tools/capture.gd` still resolves the charge glow at
   `Rig/.../SwordGrip/ChargeGlow`**, which stopped existing when the weapon became an
   equipped item — the glow now arrives inside the weapon scene. Symptom is quiet: the
@@ -447,6 +489,31 @@ to the code. Each of these failed a round before it was understood.
 - **The character's head sits above the torso with a visible gap**, so it reads as
   floating on a stalk rather than as a style choice. Spotted independently by a
   critic and by a capture review. *(Fixed: it was the antenna knob, not a head.)*
+- **A camera cannot see through the character, but a TARGET can decide where the action
+  happens.** The arithmetic that killed camera-based fixes still stands — clearing the
+  body at chest height needs the eye 3.3 m to the side — but with a lock the character
+  is rotated onto the target and the camera is already looking down the same line, so
+  the arc is presented identically every time instead of wherever the stick pointed.
+  Measured: `attack_faces_target` 0.000 degrees against `attack_faces_ahead_unlocked`
+  45.000, and a signpost-sized prop placed on the sight-line by construction covers
+  **9 of 9** sampled blade points unlocked and **0 of 9** locked. This is the systemic
+  answer, and it is the reason lock-on was three findings' worth of work rather than one.
+- **The locked framing, measured.** Solving pitch so the target lands at (½ width,
+  ¼ height) settles the target at frame fraction **0.264** and the player's chest at
+  **0.546**, i.e. 204 px apart at 640x480, stacked and not overlapping. Both player
+  (feet, chest and head) and target stayed inside the frame in **100% of 324 locked
+  frames** across strafing, closing, retreating, two swings and a target switch, with a
+  worst-case margin of **184 px** to the nearest edge — so the constraint REFERENCE.md
+  calls non-negotiable holds with a lot of room, not by a pixel. The `lockon_pivot_lift`
+  of 0.45 m is what drops the character below centre; at 0 the chest sits dead centre
+  and the gap is 172 px.
+- **A bow draw needs a different CAMERA, and the payoff is a pixel count.** From directly
+  behind, a full draw's 0.42 m retraction covers **18 px**; over the shoulder at 2.6 m
+  with a 0.95 m lateral offset and FOV 64 it covers **49**, and the bow's own screen
+  span grows **2.64x**. The aim rig also has to lift the pitch (-6 degrees, blended in
+  while the rig arrives): at the walking default of -20 a camera 2.4 m behind the
+  character frames the grass in front of its feet, and the first photographed aim frame
+  showed a perfectly legible bow with nowhere to aim it.
 
 ## Layout
 
@@ -454,8 +521,12 @@ to the code. Each of these failed a round before it was understood.
 actors/player/     player.gd + player.tscn, the gameplay state machine
                    (player_*_state.gd), sword hitbox and trail, generated
                    player_anims.tres, procedural combat sfx under audio/
+actors/dummy/      target_dummy.gd + .tscn — a straw practice dummy. Not an enemy,
+                   but deliberately the same SHAPE as one: body on layer 4, Health,
+                   HurtBox3D on layer 6, LockOnTarget anchored at the chest
 autoload/          GameState and Audio singletons
-components/        Interactable base, LockOnTarget marker, Loadout (one equip slot)
+components/        Interactable base, LockOnTarget marker, LockOnSystem (Z-targeting),
+                   Loadout (one equip slot)
 items/             item_data.gd + melee/shield/ranged subclasses, attack_step.gd,
                    the four weapon .tres definitions, arrow, rupee, chest, sign, gate,
                    weapons/ (generated by tools/build_weapons.gd)
@@ -467,8 +538,11 @@ art/shaders/       outline_post.gdshader (screen-space edge detect), foliage, wa
 world/rooms/       level scenes
 tools/             build_clearing.gd (level), build_combat_anims.gd (animation),
                    build_weapons.gd (the four weapon scenes),
-                   probe.tscn (headless measurement), capture.tscn (screenshots),
-                   shots/*.json (capture shot lists), out/ (generated, gitignored)
+                   probe.tscn (headless measurement) + probe_lockon.gd (its fourth
+                   suite, split out at the 1200-line file limit),
+                   capture.tscn (screenshots), shots/*.json (capture shot lists,
+                   poseonly.json GENERATED by gen_poseonly.py),
+                   out/ (generated, gitignored)
 ui/                HUD, hearts, lock-on reticle, pause menu, debug overlay
 refs/              reference frames for the gauntlet loop. GITIGNORED, never
                    committed, never traced or transcribed. See refs/README.md

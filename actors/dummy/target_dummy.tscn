@@ -1,0 +1,156 @@
+[gd_scene load_steps=14 format=3]
+
+[ext_resource type="Script" path="res://actors/dummy/target_dummy.gd" id="1_dummy"]
+[ext_resource type="Material" path="res://art/materials/toon_wood.tres" id="2_wood"]
+[ext_resource type="Script" path="res://components/lockon_target.gd" id="3_locktarget"]
+[ext_resource type="Script" path="res://addons/health_hitbox_hurtbox/health/health.gd" id="4_health"]
+[ext_resource type="Script" path="res://addons/health_hitbox_hurtbox/3d/hurt_box_3d/basic_hurt_box_3d.gd" id="5_hurtbox"]
+
+; Dark hessian, and the value is the point rather than the colour. CLAUDE.md's
+; measured tiers are character ~1.00, play field ~0.62, treeline 0.41-0.57, outline
+; 0.05 — so a target painted straw-tan (Rec.709 luminance 0.66) would be the same
+; value as the grass it stands on and would have to rely on its outline alone. At
+; 0.33 it separates DOWNWARD from the field, which is the only direction left: the
+; player already owns the top.
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_hessian"]
+resource_name = "dummy_hessian"
+albedo_color = Color(0.4, 0.31, 0.2, 1)
+roughness = 1.0
+diffuse_mode = 3
+specular_mode = 1
+
+; The head, lighter (luminance 0.70) so the dummy has an internal value pair and
+; reads as a figure with a head rather than as one dark lump.
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_straw"]
+resource_name = "dummy_straw"
+albedo_color = Color(0.8, 0.7, 0.44, 1)
+roughness = 1.0
+diffuse_mode = 3
+specular_mode = 1
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_body"]
+height = 1.55
+radius = 0.38
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_hurt"]
+radius = 0.42
+height = 1.75
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_post"]
+top_radius = 0.08
+bottom_radius = 0.12
+height = 0.66
+radial_segments = 10
+rings = 1
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_sack"]
+radius = 0.34
+height = 1.02
+radial_segments = 12
+rings = 4
+
+[sub_resource type="BoxMesh" id="BoxMesh_crossbar"]
+size = Vector3(1.34, 0.17, 0.17)
+
+; The belt: a straw-coloured band round the bottom of the sack. It exists because the
+; first version of this dummy was photographed at 5-8 m and read, in one look, as a
+; dark stick with a ball on top — one flat mass with no internal structure, which at
+; 100 px tall is indistinguishable from a signpost. A light band across a dark body is
+; the cheapest internal value break available and it also says "sack, tied".
+[sub_resource type="CylinderMesh" id="CylinderMesh_belt"]
+top_radius = 0.36
+bottom_radius = 0.34
+height = 0.17
+radial_segments = 12
+rings = 1
+
+[sub_resource type="SphereMesh" id="SphereMesh_head"]
+radius = 0.19
+height = 0.38
+radial_segments = 12
+rings = 6
+
+; A straw practice dummy. `collision_layer` and the health numbers are set in
+; _ready so the script is the single source of truth; the values here are only what
+; the editor shows before it runs.
+[node name="TargetDummy" type="StaticBody3D" groups=["target_dummy"]]
+collision_layer = 8
+collision_mask = 0
+script = ExtResource("1_dummy")
+
+[node name="Shape" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.78, 0)
+shape = SubResource("CylinderShape3D_body")
+
+[node name="Health" type="Node" parent="."]
+script = ExtResource("4_health")
+current = 5
+max = 5
+
+; Layer 6 (enemy_hurtbox, value 32) and mask 0: a hurtbox only has to BE found. The
+; player's sword hitbox masks layer 6 and does the finding, which is the same wiring
+; tools/probe.gd builds by hand for its throwaway targets.
+[node name="HurtBox" type="Area3D" parent="." node_paths=PackedStringArray("health")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+collision_layer = 32
+collision_mask = 0
+monitoring = false
+monitorable = true
+script = ExtResource("5_hurtbox")
+health = NodePath("../Health")
+
+[node name="Shape" type="CollisionShape3D" parent="HurtBox"]
+shape = SubResource("CapsuleShape3D_hurt")
+
+; Aimed at the chest, not the origin. An origin-anchored reticle on a tall creature
+; sits at its feet and reads as targeting the ground.
+;
+; The node_paths header is load-bearing and its absence is silent: without it Godot
+; stores the NodePath and never resolves it, so `anchor` and `health` both arrive
+; null — the reticle would sit on the ground and the lock would survive death.
+[node name="LockOnTarget" type="Area3D" parent="." node_paths=PackedStringArray("anchor", "health")]
+script = ExtResource("3_locktarget")
+anchor = NodePath("../Visuals/ChestAnchor")
+health = NodePath("../Health")
+
+; Only the visuals tip. The collision shape and the hurtbox stay upright, because a
+; hurtbox that swung away from the blade would make the second hit of a chain miss
+; for a reason no player could see.
+[node name="Visuals" type="Node3D" parent="."]
+
+[node name="ChestAnchor" type="Node3D" parent="Visuals"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.15, 0)
+
+[node name="Post" type="MeshInstance3D" parent="Visuals"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.33, 0)
+mesh = SubResource("CylinderMesh_post")
+surface_material_override/0 = ExtResource("2_wood")
+
+[node name="Sack" type="MeshInstance3D" parent="Visuals"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+mesh = SubResource("CapsuleMesh_sack")
+surface_material_override/0 = SubResource("StandardMaterial3D_hessian")
+
+[node name="Belt" type="MeshInstance3D" parent="Visuals"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.68, 0)
+mesh = SubResource("CylinderMesh_belt")
+surface_material_override/0 = SubResource("StandardMaterial3D_straw")
+
+; The arms. A 1.34 m crossbar is what turns a post with a bag on it into a figure, and
+; it is the widest thing in the silhouette — 74 px at 5 m against the sack's 37. It is
+; 0.17 m in section rather than 0.13 because at 0.13 the arms measured 7 px in a
+; photographed frame and read as two twigs rather than as arms.
+;
+; TILTED 11 degrees, and that is the same argument CLAUDE.md makes about the spin pose:
+; symmetry reads as a prop and asymmetry reads as a body. A perfectly level crossbar on
+; a vertical post is a signpost or a crucifix; the same bar off level is a scarecrow
+; with its arms hanging.
+[node name="Crossbar" type="MeshInstance3D" parent="Visuals"]
+transform = Transform3D(0.9816272, -0.1908090, 0, 0.1908090, 0.9816272, 0, 0, 0, 1, 0, 1.22, 0)
+mesh = SubResource("BoxMesh_crossbar")
+surface_material_override/0 = ExtResource("2_wood")
+
+[node name="Head" type="MeshInstance3D" parent="Visuals"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.72, 0)
+mesh = SubResource("SphereMesh_head")
+surface_material_override/0 = SubResource("StandardMaterial3D_straw")

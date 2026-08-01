@@ -95,6 +95,69 @@ signal attack_landed(hurt_box: HurtBox3D)
 @export var camera_fov: float = 70.0
 @export var camera_fov_kick: float = 6.0
 
+@export_group("Lock-on Camera")
+## How fast the camera swings round behind the player and settles on the framing
+## when a lock is taken, as an exponential rate.
+##
+## MEASURED, and not the number the arithmetic suggested. REFERENCE.md's settle band
+## is 250-400 ms; for a plain `1 - exp(-r*t)` the 90% point is `ln(10)/r`, which put
+## the answer at 8.0 — and the probe then measured 633 ms. The reason is that pitch
+## is not a plain lerp toward a fixed angle: the solve re-derives its target every
+## frame from where the eye currently is, and pitching the arm MOVES the eye, so the
+## goal retreats as the camera approaches it. A lagging feedback loop settles at
+## roughly half its nominal rate. Measured: rate 8 settles in 633 ms, 14 in 417, 18 in
+## 350 — and 417 was not good enough for a second reason, the cross-check REFERENCE.md
+## puts above every individual band. Total attack commitment measures 417 ms, and
+## "camera settle < attack commitment" is what stops you swinging before you can see.
+@export var lockon_camera_speed: float = 18.0
+## Where the TARGET is framed, as a fraction of the frame height from the top. The
+## camera does not aim at the target: it solves for the pitch that puts the target
+## HERE, which drops the player low in frame and opens the volume between the two.
+## That is Snaiel's trick and Zelda's composition — see PRIOR-ART-VISUAL.md.
+@export_range(0.05, 0.5) var lockon_target_screen_height: float = 0.25
+## How fast the character turns to keep facing the target while strafing. Fast: a
+## locked character that lags behind its own lock reads as broken.
+@export var lockon_turn_speed: float = 16.0
+## How much higher the camera pivots while locked, in metres. The pivot is what the
+## frame is centred on, so lifting it pushes the CHARACTER down the frame while the
+## pitch solve keeps the target at a quarter height — which is the "player low,
+## target high" half of the Z-target composition. Measured: at 0 the chest sits dead
+## centre with 172 px between it and the target; 0.45 opens that to ~218 px without
+## bringing the feet anywhere near the bottom edge.
+@export var lockon_pivot_lift: float = 0.45
+## Mouse travel, in pixels, that counts as a request to switch target. Snaiel uses
+## 60; the camera stick has its own threshold on the lock-on component.
+@export var lockon_mouse_switch_px: float = 70.0
+
+@export_group("Aim Camera")
+## The over-the-shoulder rig for a drawn bow, blended in while PlayerAimState runs.
+##
+## This exists because of a MEASURED structural failure, not for flavour. From a
+## camera directly behind the character the draw axis IS the view axis, so the
+## retraction, the string and the nocked arrow all foreshorten to nothing, and a
+## bow's silhouette is a 3-5 px line whichever way you look at it. The builder that
+## posed the draw said plainly that no pose fixes it and the answer is this camera.
+## Two things it buys: the character is 2.3x larger on screen at 2.4 m than at
+## 5.5 m, and a 0.95 m lateral offset puts ~21 degrees between the draw axis and
+## the view axis, so the pull finally has a component across the frame.
+@export var aim_camera_distance: float = 2.4
+@export var aim_camera_shoulder: float = 0.95
+@export var aim_camera_height: float = 1.45
+@export var aim_camera_fov: float = 64.0
+## Pitch the camera is lifted to as the shoulder rig blends in, in degrees.
+##
+## Not cosmetic. At the walking default of -20 degrees a camera 2.4 m behind the
+## character is looking at the grass in front of its feet, and the first photographed
+## aim frame proved it: the bow read fine and there was nowhere to aim it. Blended in
+## ONLY while the rig is arriving, so free look owns the pitch again the moment it has
+## settled — the alternative would be a camera that fights the stick for as long as
+## the button is held. The side effect is that the camera stays where the draw left it
+## after the shot, which one flick of the look axis undoes.
+@export var aim_camera_pitch_deg: float = -6.0
+## How fast the shoulder rig blends in and out. A cut would read as a glitch; a
+## slow slide would mean the first third of a draw is framed for walking.
+@export var aim_camera_speed: float = 14.0
+
 @export_group("Animation")
 ## Horizontal speed above which the character switches from idle to walk. Also
 ## the Idle <-> Move state threshold, so the two can never disagree.
@@ -125,6 +188,10 @@ signal attack_landed(hurt_box: HurtBox3D)
 @onready var interact_field: Area3D = $InteractField
 ## The one equip slot. Everything about the held weapon is reached through this.
 @onready var loadout: Loadout = $Loadout
+## Z-targeting. Typed, unlike `states`, because components/lockon_system.gd is
+## deliberately written against a plain Node3D body and a Camera3D — so naming its
+## class here closes no dependency cycle.
+@onready var lockon: LockOnSystem = $LockOn
 @onready var sword_trail: SwordTrail = $SwordTrail
 @onready var charge_ring: ChargeRing = $ChargeRing
 @onready var sfx_blade_player: AudioStreamPlayer3D = $SfxBlade
@@ -157,11 +224,36 @@ var attack_finished := false
 ## written for a sword.
 var attack_clip_duration := 0.5
 
+# --- Camera mode, written by the states, read by _update_camera -------------
+## 0 while the camera sits centred behind the character, 1 while it is over the
+## shoulder for an aimed shot. PlayerAimState writes it on enter and exit; the
+## smoothing lives in `_update_camera` so nothing else has to own a blend.
+##
+## A plain var rather than a setter pair on purpose: `.gdlintrc` pins this file's
+## public method count as a ratchet, and a camera MODE is state, not a verb.
+var camera_shoulder := 0.0
+## Where the camera pivot is heading this frame, in world space — the ideal
+## position before the follow lag is applied. tools/capture.gd reads it so a
+## `camera_from_game` shot can snap the pivot onto its mark without having to know
+## how the pivot is placed. Assigned every tick, never read by gameplay.
+var camera_pivot_target := Vector3.ZERO
+
 var _state_machine: AnimationNodeStateMachinePlayback
 var _focus: Interactable = null
 var _hud: Node = null
 var _footstep_timer := 0.0
 var _was_on_floor := true
+## Smoothed `camera_shoulder`.
+var _shoulder := 0.0
+## Smoothed 0-to-1 "is the camera locked on", so the pivot lift eases in and out
+## instead of stepping on the frame a lock is taken.
+var _lock_blend := 0.0
+## `spring_arm.spring_length` as the scene ships it. The aim rig is the only thing
+## that writes the spring, and it puts this back when it is done — so a capture shot
+## that sets its own `camera_distance` is never overwritten by a rig that is off.
+var _spring_rest := 5.5
+## Mouse travel accumulated toward a target switch, in pixels.
+var _switch_accum := 0.0
 
 var _base_gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
 var _coyote_timer: float = 0.0
@@ -202,10 +294,21 @@ func _ready() -> void:
 	# playback path is nested.
 	_state_machine = anim_tree["parameters/StateMachine/playback"]
 
+	_spring_rest = spring_arm.spring_length
+	camera_pivot_target = camera_pivot.global_position
+	# The component is written against a body and a camera, so the player wires
+	# itself in rather than the component reaching out for a parent it assumes.
+	lockon.body = self
+	lockon.camera = camera
+	lockon.locked.connect(_on_lock_acquired)
+	lockon.released.connect(_on_lock_released)
+
 	Toonify.apply($Rig/Character)
 	_hud = get_tree().get_first_node_in_group("hud")
 	if _hud != null and _hud.has_method("bind_loadout"):
 		_hud.bind_loadout(loadout)
+	if _hud != null and _hud.has_method("bind_lockon"):
+		_hud.bind_lockon(lockon)
 
 	# Connected AND called by hand, in that order. Child `_ready` runs before the
 	# parent's, so the Loadout has already equipped the starting item and its
@@ -220,6 +323,17 @@ func _unhandled_input(event: InputEvent) -> void:
 	# Esc is owned by the pause menu, which is also the only thing that releases
 	# the mouse — so the player can never get stuck with a captured cursor.
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+		# While locked, the camera belongs to the lock and sideways mouse travel
+		# means "switch target" instead. Steering the camera by hand and having it
+		# dragged straight back onto the target is the version of this that feels
+		# broken, so free look is not merely overridden — it is off.
+		if lockon.is_locked():
+			_switch_accum += event.relative.x
+			if absf(_switch_accum) >= lockon_mouse_switch_px:
+				lockon.try_switch(signf(_switch_accum))
+				_switch_accum = 0.0
+			return
+		_switch_accum = 0.0
 		_rotate_camera(-event.relative.x * mouse_sensitivity, -event.relative.y * mouse_sensitivity)
 
 
@@ -235,6 +349,12 @@ func _rotate_camera(yaw_delta: float, pitch_delta: float) -> void:
 ## Camera, then timers, then whichever state is current, then footsteps. The
 ## states call back into the verbs below; nothing here decides behaviour.
 func _physics_process(delta: float) -> void:
+	# Lock-on first, and in this order: the press is read, then the lock is re-tested
+	# for range and sight-line, and only then is the camera framed. A lock that broke
+	# this tick therefore never gets a frame of locked framing, and a lock taken this
+	# tick is framed on the frame it was taken.
+	_tick_lockon_input()
+	lockon.tick(delta)
 	_update_camera(delta)
 
 	var on_floor := is_on_floor()
@@ -304,6 +424,43 @@ func _tick_attack_input(delta: float) -> void:
 		_refresh_blade_look()
 	else:
 		_charge_timer = 0.0
+
+
+## The target button, and target switching. Read here rather than inside the lock-on
+## component for the same reason every other input is: this file owns what the player
+## pressed, and the component owns what it means.
+func _tick_lockon_input() -> void:
+	if Input.is_action_just_pressed("target"):
+		lockon.press()
+	if lockon.is_locked():
+		# The camera stick has nothing else to do while locked, so it flicks between
+		# targets. `try_switch` owns the threshold and the debounce.
+		lockon.try_switch(Input.get_axis("cam_left", "cam_right"))
+
+
+## Acquire and release both get a sound, and it is deliberately the charge chime at
+## two different pitches rather than a new asset: up for "held", down for "let go".
+## A state this consequential needs an ear as well as an eye, and REFERENCE.md is
+## explicit that a threshold with only one of the two is a guess.
+func _on_lock_acquired(_target: LockOnTarget) -> void:
+	_play_lock_cue(1.4)
+
+
+func _on_lock_released() -> void:
+	_switch_accum = 0.0
+	_play_lock_cue(0.78)
+
+
+func _play_lock_cue(pitch: float) -> void:
+	# `is_inside_tree` is not caution: tearing a level down makes every target leave
+	# the detection sphere, which breaks the lock, which lands here after the audio
+	# player has already left the tree. Godot's answer to that is an error per lock.
+	if sfx_charge_ready == null or not is_inside_tree():
+		return
+	sfx_cue_player.stream = sfx_charge_ready
+	sfx_cue_player.volume_db = -13.0
+	sfx_cue_player.pitch_scale = pitch
+	sfx_cue_player.play()
 
 
 ## Seconds of hold before the charged attack is available, or 0 when the equipped item
@@ -401,12 +558,26 @@ func apply_movement(delta: float, on_floor: bool, scale: float = 1.0) -> void:
 
 ## Flatten the camera basis onto the ground plane so "forward" means "away from
 ## the camera", not "into the floor".
+##
+## While locked on, the basis is the TARGET's rather than the camera's, and that one
+## substitution is the whole of strafing: pushing sideways then orbits the target
+## instead of sliding across the frame, and pushing back retreats from it rather
+## than toward the lens. It is also why locked movement needs no second code path —
+## `apply_movement` is unchanged and does not know a lock exists.
+##
+## The unlocked branch below is character-for-character what it always was. Both
+## `right` expressions are mathematically the same vector for a yaw-only pivot, but
+## the movement baseline is pinned to a physics frame, and re-deriving one from the
+## other would be a floating-point change for no reason.
 func camera_relative_input() -> Vector3:
 	var input_dir := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 
 	var cam_basis := camera_pivot.global_basis
 	var forward := -cam_basis.z
 	var right := cam_basis.x
+	if lockon.is_locked():
+		forward = lockon.target_point() - global_position
+		right = Vector3(-forward.z, 0.0, forward.x)
 	forward.y = 0.0
 	right.y = 0.0
 	forward = forward.normalized()
@@ -419,26 +590,118 @@ func camera_relative_input() -> Vector3:
 
 
 func _update_camera(delta: float) -> void:
-	# Right-stick look.
-	var look := Input.get_vector("cam_left", "cam_right", "cam_up", "cam_down")
-	if look != Vector2.ZERO:
-		_rotate_camera(-look.x * stick_sensitivity * delta, -look.y * stick_sensitivity * delta)
+	var locked := lockon.is_locked()
 
-	# Lag the pivot toward the player instead of snapping to them.
-	var target := global_position + Vector3.UP * camera_target_height
+	# Right-stick look, unless the lock owns the camera — in which case the same
+	# axis switches target instead. See `_tick_lockon_input`.
+	if not locked:
+		var look := Input.get_vector("cam_left", "cam_right", "cam_up", "cam_down")
+		if look != Vector2.ZERO:
+			_rotate_camera(-look.x * stick_sensitivity * delta, -look.y * stick_sensitivity * delta)
+
+	var was_aiming := _shoulder > 0.001
+	_shoulder = lerpf(_shoulder, camera_shoulder, 1.0 - exp(-aim_camera_speed * delta))
+	_lock_blend = lerpf(
+		_lock_blend, 1.0 if locked else 0.0, 1.0 - exp(-lockon_camera_speed * delta))
+
+	# Lag the pivot toward the player instead of snapping to them. A lock lifts the
+	# pivot and the aim rig raises it further and slides it sideways; with neither
+	# engaged every added term is exactly zero (`lerpf(a, b, 0)` is `a`), so this is
+	# the line it has always been and the movement baseline cannot move.
+	var height := camera_target_height + lockon_pivot_lift * _lock_blend
+	var offset := Vector3.UP * lerpf(height, aim_camera_height, _shoulder)
+	if _shoulder > 0.001:
+		var side := camera_pivot.global_basis.x
+		side.y = 0.0
+		offset += side.normalized() * (aim_camera_shoulder * _shoulder)
+	camera_pivot_target = global_position + offset
 	camera_pivot.global_position = camera_pivot.global_position.lerp(
-		target, 1.0 - exp(-camera_follow_speed * delta)
+		camera_pivot_target, 1.0 - exp(-camera_follow_speed * delta)
 	)
 
+	if locked:
+		_frame_lock_target(delta)
+	elif camera_shoulder > 0.5 and _shoulder < 0.995:
+		# Lift the lens as the shoulder rig arrives, then let go of it. See
+		# `aim_camera_pitch_deg`. `elif`, because a lock already owns the pitch and
+		# aiming at something you have Z-targeted should keep the target framed.
+		spring_arm.rotation.x = lerpf(spring_arm.rotation.x,
+			deg_to_rad(aim_camera_pitch_deg), 1.0 - exp(-aim_camera_speed * delta))
+
+	# The spring is written ONLY while the aim rig is engaged, and put back once on
+	# the way out. Writing it every frame would silently overwrite the
+	# `camera_distance` a capture shot had set for itself.
+	if _shoulder > 0.001:
+		spring_arm.spring_length = lerpf(_spring_rest, aim_camera_distance, _shoulder)
+	elif was_aiming:
+		spring_arm.spring_length = _spring_rest
+
 	# Widen the lens slightly with speed. Eases in faster than it eases out, so
-	# starting to run feels punchy but stopping doesn't snap.
+	# starting to run feels punchy but stopping doesn't snap. Aiming narrows it
+	# instead, which is the other half of getting a bow onto the screen.
 	var ratio := clampf(get_horizontal_speed() / maxf(max_speed, 0.01), 0.0, 1.0)
-	var wanted := camera_fov + camera_fov_kick * ratio
+	var wanted := lerpf(camera_fov + camera_fov_kick * ratio, aim_camera_fov, _shoulder)
 	var rate := 4.0 if wanted > camera.fov else 2.5
 	camera.fov = lerpf(camera.fov, wanted, 1.0 - exp(-rate * delta))
 
 
+## The locked framing: yaw round behind the player onto the target, then solve the
+## pitch that lands the target at (½ width, ¼ height).
+##
+## The pitch is the good idea here and it is worth being explicit about why it is
+## not simply "point at the target". Pointing at the target centres it, which puts
+## the player directly underneath it and the two overlap. Projecting the DESIRED
+## SCREEN POSITION back into the world at the target's depth and solving for the
+## pitch that would put it there leaves the target high and the player low, with the
+## volume between them — the volume a fight happens in — open. Zelda's Z-target
+## composition, and Snaiel's implementation of it; PRIOR-ART-VISUAL.md quotes the
+## original.
+##
+## Both channels use `1 - exp(-rate * delta)` rather than a bare weight. Every
+## reference project uses the bare version and every one of them is framerate
+## dependent (PRIOR-ART.md, "what to avoid" #1).
+func _frame_lock_target(delta: float) -> void:
+	var aim := lockon.target_point()
+	var weight := 1.0 - exp(-lockon_camera_speed * delta)
+
+	var flat := aim - global_position
+	flat.y = 0.0
+	if flat.length_squared() > 0.0001:
+		# The pivot looks down -basis.z, so a yaw of atan2(-x, -z) points it along
+		# the player-to-target line. Wrapped, because lerp_angle can walk outside
+		# ±PI and `_rotate_camera` assumes it does not.
+		var wanted_yaw := atan2(-flat.x, -flat.z)
+		camera_pivot.rotation.y = wrapf(
+			lerp_angle(camera_pivot.rotation.y, wanted_yaw, weight), -PI, PI)
+
+	var frame := Vector2(camera.get_viewport().get_visible_rect().size)
+	var depth := camera.global_position.distance_to(aim)
+	var desired := camera.project_position(
+		Vector2(frame.x * 0.5, frame.y * lockon_target_screen_height), depth)
+	# Increasing the arm's rotation.x tilts the view UP, which moves the image DOWN
+	# the frame; so a target sitting above the desired point needs a positive
+	# correction. Clamped to the same limits free look has, which is also the safety
+	# net: a clamp can only ever move the target back toward the centre of frame.
+	var wanted_pitch := clampf(
+		spring_arm.rotation.x + atan2(aim.y - desired.y, maxf(depth, 0.01)),
+		deg_to_rad(pitch_min_deg),
+		deg_to_rad(pitch_max_deg))
+	spring_arm.rotation.x = lerpf(spring_arm.rotation.x, wanted_pitch, weight)
+
+
 func face_movement_direction(delta: float) -> void:
+	# Locked, the character faces the TARGET however it is travelling — which is what
+	# makes a sidestep read as circling rather than as walking away. Handled here
+	# rather than in the locomotion states so all three of Idle, Move and Air inherit
+	# it without a branch each.
+	if lockon.is_locked():
+		var to := lockon.target_point() - global_position
+		to.y = 0.0
+		if to.length_squared() > 0.0001:
+			rig.rotation.y = lerp_angle(
+				rig.rotation.y, atan2(to.x, to.z), lockon_turn_speed * delta)
+		return
+
 	var horizontal := Vector3(velocity.x, 0.0, velocity.z)
 	if horizontal.length_squared() < 0.01:
 		return
@@ -450,7 +713,23 @@ func face_movement_direction(delta: float) -> void:
 
 ## A swing commits your facing. Snapping to the stick on frame one reads as
 ## decisive; turning through the swing reads as mush.
+##
+## WITH A TARGET, the swing turns to the target instead — even with no stick input
+## at all, which the unlocked version could not do. That is God of War 2018's
+## systemic answer to actions the camera cannot see, quoted in PRIOR-ART-VISUAL.md:
+## *"if Kratos has a target, all of his attacks are automatically rotated to face
+## them"*. It matters here because the camera, while locked, is also looking down
+## the player-to-target line — so the arc is presented the same way every time
+## instead of wherever the stick happened to be pointing, and the volume it sweeps
+## through is the one the framing has deliberately left open.
 func snap_facing_to_input() -> void:
+	if lockon.is_locked():
+		var to := lockon.target_point() - global_position
+		to.y = 0.0
+		if to.length_squared() > 0.0001:
+			rig.rotation.y = atan2(to.x, to.z)
+			return
+
 	var direction := camera_relative_input()
 	if direction != Vector3.ZERO:
 		rig.rotation.y = atan2(direction.x, direction.z)
