@@ -290,6 +290,33 @@ func _suite_combat() -> void:
 	await _frames(4)
 	_release_all()
 
+	# The two taps above both re-enter the Attack state, so both play slash_a. The
+	# combo's SECOND clip only runs when the follow-up is chained inside the first
+	# swing, and it has its own arc — one re-authoring pass shipped a slash_b that
+	# swung past a target entirely, which nothing above would have caught.
+	#
+	# Fresh reset and a fresh target, because every swing lunges the player forward
+	# and three of them have already moved them most of a metre.
+	await _reset()
+	var combo_target := _spawn_target(1.25, 1.0)
+	await _frames(4)
+	var combo_health: Node = combo_target.get_node("Health")
+	var before_combo: int = combo_health.current
+	Input.action_press("attack")
+	await _frames(2)
+	Input.action_release("attack")
+	await _frames(4)
+	Input.action_press("attack")   # chained, so the combo advances to slash_b
+	await _frames(2)
+	Input.action_release("attack")
+	await _frames(70)
+	_add("damage_combo_two_hits", float(before_combo - int(combo_health.current)), "hp",
+		"health lost across a chained slash_a + slash_b — 2 means both arcs reach what is in front of the player")
+
+	combo_target.queue_free()
+	await _frames(4)
+	_release_all()
+
 
 ## Tap attack and wait out the whole swing.
 func _swing_once() -> void:

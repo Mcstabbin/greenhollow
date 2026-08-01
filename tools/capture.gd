@@ -27,6 +27,15 @@ var _pivot: Node3D = null
 var _arm: SpringArm3D = null
 var _out_dir := ""
 var _written: Array = []
+## Shots whose actual state did not match what the shot list claimed. Any entry
+## here fails the run — see _check_expectations().
+var _failures: Array = []
+## The camera as player.tscn ships it. A shot that omits a camera key gets these
+## back, rather than inheriting whatever the previous shot set — which is what
+## makes "shoot this from the real gameplay camera" expressible as an ABSENCE of
+## overrides instead of a set of numbers that have to be kept in sync by hand.
+var _default_pitch := 0.0
+var _default_spring := 0.0
 
 
 func _ready() -> void:
@@ -55,6 +64,11 @@ func _ready() -> void:
 		return
 	_pivot = _player.get_node_or_null("CameraPivot") as Node3D
 	_arm = _player.get_node_or_null("CameraPivot/SpringArm3D") as SpringArm3D
+	if _arm != null:
+		_default_pitch = _arm.rotation.x
+		_default_spring = _arm.spring_length
+		print("capture: gameplay camera defaults — pitch %.1f deg, spring %.2f m"
+			% [rad_to_deg(_default_pitch), _default_spring])
 
 	for shot in shots:
 		await _run_shot(shot)
@@ -64,6 +78,16 @@ func _ready() -> void:
 	remove_child(_level)
 	_level.free()
 	await get_tree().process_frame
+
+	if not _failures.is_empty():
+		printerr("capture: %d shot(s) were not in the state the shot list claimed:"
+			% _failures.size())
+		for line in _failures:
+			printerr("  %s" % line)
+		printerr("capture: the PNGs were still written, but do NOT judge them —"
+			+ " a mislabelled frame scores the animation for something it was not doing.")
+		get_tree().quit(1)
+		return
 	get_tree().quit(0)
 
 
@@ -90,17 +114,48 @@ func _run_shot(shot: Dictionary) -> void:
 	# the camera angle is set, or the pivot chase drags the framing off.
 	await _frames(int(shot.get("warmup_frames", 45)))
 
-	if _pivot != null and shot.has("camera_yaw_deg"):
-		_pivot.rotation.y = deg_to_rad(float(shot["camera_yaw_deg"]))
-	if _arm != null and shot.has("camera_pitch_deg"):
-		_arm.rotation.x = deg_to_rad(float(shot["camera_pitch_deg"]))
-	if _arm != null and shot.has("camera_distance"):
-		_arm.spring_length = float(shot["camera_distance"])
+	# Bleed off anything the PREVIOUS shot left behind. Zeroing velocity before the
+	# warmup is not enough: a shot that ended mid-slash leaves the attack's forward
+	# drive still being applied, so the player accelerates during warmup and arrives
+	# in Move with the walk cycle playing. That produced four "idle" frames of a
+	# walking character, and it only became visible once expectations were asserted.
+	# No shot here depends on carried momentum, so re-zeroing is always correct.
+	if shot.has("player_position"):
+		var p2: Array = shot["player_position"]
+		_player.global_position = Vector3(float(p2[0]), float(p2[1]), float(p2[2]))
+		_player.set("velocity", Vector3.ZERO)
+		await _frames(8)
 
-	# Walk the input timeline frame by frame and capture on the nominated frame.
+	if _pivot != null:
+		_pivot.rotation.y = deg_to_rad(float(shot.get("camera_yaw_deg", 0.0)))
+	if _arm != null:
+		_arm.rotation.x = (deg_to_rad(float(shot["camera_pitch_deg"]))
+			if shot.has("camera_pitch_deg") else _default_pitch)
+		_arm.spring_length = (float(shot["camera_distance"])
+			if shot.has("camera_distance") else _default_spring)
+
+	# Walk the input timeline frame by frame.
+	#
+	# `capture_at` is a fixed frame number, which is hand-tuned arithmetic: the
+	# numbers were fitted to a measured three-frame input latency, and adding an
+	# eight-frame settle above silently shifted every action shot off its window.
+	# Frame numbers are the wrong contract for "catch the blade mid-swing".
+	#
+	# So `capture_when` is preferred: advance until the player actually reaches the
+	# named clip/state (plus an optional `capture_offset`), and capture there. The
+	# shot then says what it wants rather than when it thinks it happens, and stays
+	# correct when timing changes. `capture_at` still works, and acts as the
+	# fallback and the timeout.
 	var timeline: Array = shot.get("inputs", [])
 	var capture_at := int(shot.get("capture_at", 1))
-	for frame in range(1, capture_at + 1):
+	var when: Dictionary = shot.get("capture_when", {})
+	var limit := int(shot.get("timeout_frames", 240)) if not when.is_empty() else capture_at
+	var offset := int(shot.get("capture_offset", 0))
+	var matched := when.is_empty()
+	var frame := 0
+
+	while frame < limit:
+		frame += 1
 		for entry_v in timeline:
 			var entry: Dictionary = entry_v
 			var action := String(entry.get("action", ""))
@@ -112,7 +167,19 @@ func _run_shot(shot: Dictionary) -> void:
 				Input.action_release(action)
 		await get_tree().physics_frame
 
+		if not matched and _matches(when):
+			matched = true
+			if offset > 0:
+				await _frames(offset)
+			break
+		if matched and frame >= capture_at:
+			break
+
+	if not matched:
+		_failures.append("%s: never reached %s within %d frames" % [name, when, limit])
+
 	await _save(name)
+	_check_expectations(shot, name)
 	_release_all()
 
 
@@ -126,8 +193,89 @@ func _save(name: String) -> void:
 	if err != OK:
 		printerr("capture: could not write %s (error %d)" % [path, err])
 		return
-	_written.append({"name": name, "path": path, "size": [image.get_width(), image.get_height()]})
-	print("capture: wrote %s (%dx%d)" % [path, image.get_width(), image.get_height()])
+	# What the player was actually doing. Without this a shot list is a set of frame
+	# numbers arrived at by guesswork — "capture_at 37 is slash_b's follow-through"
+	# was wrong by a whole clip, and the only way to tell from the PNG was that the
+	# pose looked wrong.
+	var state := _player_state()
+	_written.append({
+		"name": name, "path": path,
+		"size": [image.get_width(), image.get_height()],
+		"state": state,
+	})
+	print("capture: wrote %s (%dx%d) %s" % [path, image.get_width(), image.get_height(), state])
+
+
+## Is the player in the state a `capture_when` block is waiting for?
+## Keys are the same three the expectations use: state, clip, live.
+func _matches(when: Dictionary) -> bool:
+	var probes := {
+		"state": "get_state_name",
+		"clip": "get_anim_state",
+		"live": "is_attack_hitbox_active",
+		"charged": "is_attack_charged",
+	}
+	for key in when:
+		if not probes.has(key) or not _player.has_method(probes[key]):
+			return false
+		if str(_player.call(probes[key])).to_lower() != str(when[key]).to_lower():
+			return false
+	return true
+
+
+## Assert that the frame is what the shot list says it is.
+##
+## This exists because a forced-choice legibility test (CRITIC.md Mode 4) is only
+## as good as its labels, and mine were wrong: six frames listed as idle came out
+## with the player mid-walk and mid-fall, which would have scored the animation
+## for something the animation was not doing. The failure was silent — the PNGs
+## looked plausible.
+##
+## `expect_state`, `expect_clip` and `expect_live` are all optional. Any shot that
+## declares one and misses it is recorded as a failure and the run exits non-zero,
+## so a mislabelled set can never reach a critic.
+func _check_expectations(shot: Dictionary, name: String) -> void:
+	var checks := {
+		"expect_state": ["get_state_name", "state"],
+		"expect_clip": ["get_anim_state", "clip"],
+		"expect_live": ["is_attack_hitbox_active", "live"],
+	}
+	for key in checks:
+		if not shot.has(key):
+			continue
+		var method: String = checks[key][0]
+		var label: String = checks[key][1]
+		if not _player.has_method(method):
+			_failures.append("%s: cannot check %s, player has no %s()" % [name, label, method])
+			continue
+		var actual: Variant = _player.call(method)
+		var wanted: Variant = shot[key]
+		# `str()`, not `String()`: the String constructor rejects a bool outright,
+		# so expect_live crashed the check it was meant to perform. Comparing as
+		# lowercase strings also makes JSON's bool agree with the engine's, and
+		# stops "Attack" and &"Attack" (StringName) reading as different.
+		if str(actual).to_lower() != str(wanted).to_lower():
+			_failures.append("%s: expected %s=%s but got %s" % [name, label, wanted, actual])
+
+
+func _player_state() -> String:
+	if _player == null:
+		return ""
+	var parts: PackedStringArray = []
+	if _player.has_method("get_state_name"):
+		parts.append("state=%s" % _player.call("get_state_name"))
+	if _player.has_method("get_anim_state"):
+		parts.append("clip=%s" % _player.call("get_anim_state"))
+	if _player.has_method("is_attack_hitbox_active"):
+		parts.append("live=%s" % _player.call("is_attack_hitbox_active"))
+	if _player.has_method("is_attack_charged"):
+		parts.append("charged=%s" % _player.call("is_attack_charged"))
+	var tree := _player.get_node_or_null("AnimationTree") as AnimationTree
+	if tree != null:
+		var playback: Variant = tree.get("parameters/StateMachine/playback")
+		if playback is AnimationNodeStateMachinePlayback:
+			parts.append("t=%.3f" % (playback as AnimationNodeStateMachinePlayback).get_current_play_position())
+	return "[%s]" % " ".join(parts)
 
 
 # --- Plumbing -------------------------------------------------------------

@@ -156,6 +156,13 @@ judged before there is something to hit.
 
 ## References
 
-- [CRITIC.md](CRITIC.md) — the fresh-context critic brief, verbatim.
+- [CRITIC.md](CRITIC.md) — the fresh-context critic brief, verbatim. Four modes;
+  Mode 4 is a forced-choice test that returns a score rather than an opinion.
 - [REFERENCE.md](REFERENCE.md) — which frames `refs/oot/` needs, and the measured
   feel rubric with bands.
+- [PRIOR-ART.md](PRIOR-ART.md) — combat, lock-on, components, plus architecture,
+  style and testing. Read before building a system.
+- [PRIOR-ART-VISUAL.md](PRIOR-ART-VISUAL.md) — outlines, trails, hit feedback,
+  state legibility. **Read before touching anything meant to be seen.** It carries
+  the fact that explains most failed readability rounds: a transparent material can
+  never be outlined by our screen-space pass.

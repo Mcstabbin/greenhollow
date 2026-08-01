@@ -120,6 +120,7 @@ signal attack_landed(hurt_box: HurtBox3D)
 @onready var blade: MeshInstance3D = sword.get_node("Blade")
 @onready var charge_glow: OmniLight3D = sword.get_node("ChargeGlow")
 @onready var sword_trail: SwordTrail = $SwordTrail
+@onready var spin_ring: SpinRing = $SpinRing
 @onready var sfx_blade_player: AudioStreamPlayer3D = $SfxBlade
 @onready var sfx_cue_player: AudioStreamPlayer3D = $SfxCue
 # Typed as Node, not PlayerStateMachine: the states are typed against Player, so
@@ -145,10 +146,16 @@ var _coyote_timer: float = 0.0
 var _jump_buffer_timer: float = 0.0
 
 var _attack_started: int = 0
+## Which clip the current swing is. Read by _anim_attack_finished to tell its own
+## end keyframe from the previous clip's, still firing as it cross-fades out.
+var _attack_clip: StringName = &""
 var _attack_buffer_timer: float = 0.0
 var _charge_timer: float = 0.0
 var _charged := false
 var _spin_requested := false
+## Purely cosmetic, and deliberately not `attack_hitbox_active`: the blade's glow
+## follows the trail's window, which is wider than the damage window.
+var _blade_hot := false
 
 
 func _ready() -> void:
@@ -384,11 +391,14 @@ func apply_attack_drive(delta: float, on_floor: bool) -> void:
 ## play the clip from its first frame.
 func begin_attack(clip: StringName, spin: bool) -> void:
 	_attack_started += 1
+	_attack_clip = clip
 	attack_can_cancel = false
 	attack_finished = false
 	attack_hitbox_active = false
 	sword_hitbox.end_swing()
 	sword_hitbox.amount = spin_damage if spin else slash_damage
+	spin_ring.stop()
+	_blade_hot = false
 	_refresh_blade_look()
 	play_anim(clip, 1.0, true)
 	_play_blade(sfx_swing_heavy if spin else sfx_swing, -5.0)
@@ -398,7 +408,11 @@ func end_attack() -> void:
 	attack_hitbox_active = false
 	attack_can_cancel = false
 	attack_finished = false
+	_blade_hot = false
 	sword_hitbox.end_swing()
+	# Stopped, not cleared: leaving the attack state lets the arc fade out on its
+	# own, exactly as finishing a swing does. Yanking the ribbon here would make
+	# every cancel look like a rendering glitch.
 	sword_trail.stop()
 	_refresh_blade_look()
 
@@ -431,22 +445,54 @@ func get_clip_length(clip: StringName) -> float:
 func _anim_hitbox_on() -> void:
 	attack_hitbox_active = true
 	sword_hitbox.begin_swing()
-	sword_trail.start()
 	_refresh_blade_look()
 
 
 func _anim_hitbox_off() -> void:
 	attack_hitbox_active = false
 	sword_hitbox.end_swing()
-	sword_trail.stop()
 	_refresh_blade_look()
+
+
+## The ribbon is deliberately NOT tied to the hitbox window. The live window is
+## 100 ms, but the readable part of a swing is the whole arc either side of it, so
+## the clips open the trail a few frames before the hitbox and close it a few
+## after. Keeping them separate means the arc can be made more legible without
+## touching a single measured gameplay number.
+func _anim_trail_on() -> void:
+	sword_trail.start()
+	# The blade goes hot with the ribbon, not with the hitbox. Three frames of
+	# anticipation is what makes the wind-up pose read as a wind-up instead of as a
+	# character holding a sword up.
+	_blade_hot = true
+	_refresh_blade_look()
+
+
+func _anim_trail_off() -> void:
+	sword_trail.stop()
+	_blade_hot = false
+	_refresh_blade_look()
+
+
+## Only the spin clip carries this key.
+func _anim_spin_ring() -> void:
+	spin_ring.flash()
 
 
 func _anim_allow_cancel() -> void:
 	attack_can_cancel = true
 
 
-func _anim_attack_finished() -> void:
+## `clip` is the clip that owns the keyframe, and the check is not defensive
+## paranoia. Chaining the combo cross-fades the previous clip out over 0.06 s, and
+## a fading clip still advances and still fires its method keys — so slash_a's end
+## key arrived two frames into slash_b and ended the follow-up on the spot. The
+## clip then played out anyway, arming and disarming the hitbox from inside Idle,
+## with no commitment and no cancel window. Every probe number still passed; only
+## capture.gd printing the live state caught it.
+func _anim_attack_finished(clip: String = "") -> void:
+	if clip != "" and StringName(clip) != _attack_clip:
+		return
 	attack_finished = true
 
 
@@ -498,7 +544,7 @@ func _refresh_blade_look() -> void:
 		return
 	if _charged:
 		blade.material_override = blade_charged_material
-	elif attack_hitbox_active:
+	elif _blade_hot or attack_hitbox_active:
 		blade.material_override = blade_live_material
 	else:
 		blade.material_override = blade_material

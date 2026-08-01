@@ -1,13 +1,105 @@
 {
-  "_comment": "Sword readability. Compare against refs/oot/sword_swing_*.png and refs/oot/spin_attack.png. Shot at (16, -2) rather than the spawn: the spawn is ringed with logs and signs, and every swing frame overlapped a dark prop. The player faces -Z and never turns without input, so a pivot yaw of 140 sits front-right where the cut is broadside; yaw 0 is the real gameplay camera, kept as an honesty check. capture_at counts physics frames after warmup; the attack registers on frame 2, so clip frame k lands near k + 3.",
+  "_comment": "Sword readability. THE GAMEPLAY CAMERA IS THE JUDGED FRAME. A previous round passed every showcase angle and failed a fresh critic outright, who identified the one gameplay-camera frame unaided and said of it: 'I cannot find a weapon. Not a pixel of blade.' The three good frames were good because they were shot from angles no player will ever occupy. So the gameplay shots come first here and they are the ones that count: they omit camera_pitch_deg and camera_distance entirely, which capture.gd resolves to player.tscn's own spring arm, and the player faces away as they always do without input. gp_idle is the control — every other gp_ frame must be unmistakably distinguishable from it. Showcase angles follow, kept only for reading pose detail. Shot at (16, -2) rather than the spawn, which is ringed with logs and signs that every swing frame overlapped. capture_at counts physics frames after warmup; the attack registers on frame 2, so clip frame k lands near k + 3.",
   "shots": [
     {
-      "name": "sword_rest",
-      "player_position": [
-        16,
-        0.3,
-        -2
+      "_note": "CONTROL. Identical camera to every other gp_ shot, no input at all.",
+      "name": "gp_idle",
+      "player_position": [16, 0.3, -2],
+      "camera_yaw_deg": 0,
+      "warmup_frames": 60,
+      "capture_at": 8
+    },
+    {
+      "_note": "slash_a wind-up, clip frame ~2: blade vertical above the shoulder, tip measured at y 2.26 against a 1.98 m head.",
+      "name": "gp_slash_a_windup",
+      "player_position": [16, 0.3, -2],
+      "camera_yaw_deg": 0,
+      "warmup_frames": 50,
+      "inputs": [{ "action": "attack", "press_at": 1, "release_at": 3 }],
+      "capture_at": 5
+    },
+    {
+      "_note": "slash_a live, clip frame ~6: blade 1.5 m out on the right flank, ribbon spanning the descent from above the head.",
+      "name": "gp_slash_a_live",
+      "player_position": [16, 0.3, -2],
+      "camera_yaw_deg": 0,
+      "warmup_frames": 50,
+      "inputs": [{ "action": "attack", "press_at": 1, "release_at": 3 }],
+      "capture_at": 9
+    },
+    {
+      "_note": "slash_a live, clip frame ~9: blade crossing the front, so the arc is carried by the ribbon rather than the blade.",
+      "name": "gp_slash_a_live_late",
+      "player_position": [16, 0.3, -2],
+      "camera_yaw_deg": 0,
+      "warmup_frames": 50,
+      "inputs": [{ "action": "attack", "press_at": 1, "release_at": 3 }],
+      "capture_at": 12
+    },
+    {
+      "_note": "slash_a recovery, clip frame ~17: hitbox long closed, blade back up on the follow-through, ribbon still on screen. If the arc is gone by here it was never persistent enough to read.",
+      "name": "gp_slash_a_recover",
+      "player_position": [16, 0.3, -2],
+      "camera_yaw_deg": 0,
+      "warmup_frames": 50,
+      "inputs": [{ "action": "attack", "press_at": 1, "release_at": 3 }],
+      "capture_at": 20
+    },
+    {
+      "_note": "slash_b live, chained follow-up. Timed from capture.gd's state readout rather than arithmetic — at 32 the clip really is slash_b at t=0.117 with the hitbox live. Clip frame ~7: rising, blade above the head, the opposite screen direction to slash_a.",
+      "name": "gp_slash_b_live",
+      "player_position": [16, 0.3, -2],
+      "camera_yaw_deg": 0,
+      "warmup_frames": 50,
+      "inputs": [
+        { "action": "attack", "press_at": 1, "release_at": 3 },
+        { "action": "attack", "press_at": 8, "release_at": 10 }
       ],
+      "capture_at": 32
+    },
+    {
+      "_note": "slash_b live later, clip frame ~10, still inside the live window: blade vertical overhead.",
+      "name": "gp_slash_b_live_late",
+      "player_position": [16, 0.3, -2],
+      "camera_yaw_deg": 0,
+      "warmup_frames": 50,
+      "inputs": [
+        { "action": "attack", "press_at": 1, "release_at": 3 },
+        { "action": "attack", "press_at": 8, "release_at": 10 }
+      ],
+      "capture_at": 35
+    },
+    {
+      "_note": "Charge tell: attack held past the 1067 ms threshold. Blade and its glow go saturated cyan — the swing owns orange, so the two can never be confused.",
+      "name": "gp_charge_tell",
+      "player_position": [16, 0.3, -2],
+      "camera_yaw_deg": 0,
+      "warmup_frames": 50,
+      "inputs": [{ "action": "attack", "press_at": 1 }],
+      "capture_at": 75
+    },
+    {
+      "_note": "Spin, first revolution: ground ring expanding, ribbon closing into a full circle.",
+      "name": "gp_spin_live",
+      "player_position": [16, 0.3, -2],
+      "camera_yaw_deg": 0,
+      "warmup_frames": 50,
+      "inputs": [{ "action": "attack", "press_at": 1, "release_at": 66 }],
+      "capture_at": 78
+    },
+    {
+      "_note": "Spin, second revolution: the ring at full radius.",
+      "name": "gp_spin_live_late",
+      "player_position": [16, 0.3, -2],
+      "camera_yaw_deg": 0,
+      "warmup_frames": 50,
+      "inputs": [{ "action": "attack", "press_at": 1, "release_at": 66 }],
+      "capture_at": 86
+    },
+    {
+      "_note": "Showcase from here down. Useful for reading pose detail, never for judging legibility.",
+      "name": "show_sword_rest",
+      "player_position": [16, 0.3, -2],
       "camera_yaw_deg": 140,
       "camera_pitch_deg": -16,
       "camera_distance": 4.6,
@@ -15,248 +107,47 @@
       "capture_at": 8
     },
     {
-      "name": "slash_windup",
-      "player_position": [
-        16,
-        0.3,
-        -2
-      ],
+      "name": "show_slash_a_live",
+      "player_position": [16, 0.3, -2],
       "camera_yaw_deg": 140,
       "camera_pitch_deg": -16,
       "camera_distance": 4.6,
       "warmup_frames": 50,
-      "inputs": [
-        {
-          "action": "attack",
-          "press_at": 1,
-          "release_at": 3
-        }
-      ],
-      "capture_at": 6
+      "inputs": [{ "action": "attack", "press_at": 1, "release_at": 3 }],
+      "capture_at": 11
     },
     {
-      "name": "slash_live_start",
-      "player_position": [
-        16,
-        0.3,
-        -2
-      ],
-      "camera_yaw_deg": 140,
-      "camera_pitch_deg": -16,
-      "camera_distance": 4.6,
-      "warmup_frames": 50,
-      "inputs": [
-        {
-          "action": "attack",
-          "press_at": 1,
-          "release_at": 3
-        }
-      ],
-      "capture_at": 9
-    },
-    {
-      "name": "slash_live_mid",
-      "player_position": [
-        16,
-        0.3,
-        -2
-      ],
-      "camera_yaw_deg": 140,
-      "camera_pitch_deg": -16,
-      "camera_distance": 4.6,
-      "warmup_frames": 50,
-      "inputs": [
-        {
-          "action": "attack",
-          "press_at": 1,
-          "release_at": 3
-        }
-      ],
-      "capture_at": 12
-    },
-    {
-      "name": "slash_live_end",
-      "player_position": [
-        16,
-        0.3,
-        -2
-      ],
-      "camera_yaw_deg": 140,
-      "camera_pitch_deg": -16,
-      "camera_distance": 4.6,
-      "warmup_frames": 50,
-      "inputs": [
-        {
-          "action": "attack",
-          "press_at": 1,
-          "release_at": 3
-        }
-      ],
-      "capture_at": 14
-    },
-    {
-      "name": "slash_recover",
-      "player_position": [
-        16,
-        0.3,
-        -2
-      ],
-      "camera_yaw_deg": 140,
-      "camera_pitch_deg": -16,
-      "camera_distance": 4.6,
-      "warmup_frames": 50,
-      "inputs": [
-        {
-          "action": "attack",
-          "press_at": 1,
-          "release_at": 3
-        }
-      ],
-      "capture_at": 19
-    },
-    {
-      "name": "slash_live_mid_side",
-      "player_position": [
-        16,
-        0.3,
-        -2
-      ],
+      "name": "show_slash_a_live_side",
+      "player_position": [16, 0.3, -2],
       "camera_yaw_deg": 90,
       "camera_pitch_deg": -16,
       "camera_distance": 4.6,
       "warmup_frames": 50,
-      "inputs": [
-        {
-          "action": "attack",
-          "press_at": 1,
-          "release_at": 3
-        }
-      ],
-      "capture_at": 12
+      "inputs": [{ "action": "attack", "press_at": 1, "release_at": 3 }],
+      "capture_at": 11
     },
     {
-      "name": "slash_live_mid_gameplay_cam",
-      "player_position": [
-        16,
-        0.3,
-        -2
-      ],
-      "camera_yaw_deg": 0,
-      "camera_pitch_deg": -14,
-      "camera_distance": 5.0,
-      "warmup_frames": 50,
-      "inputs": [
-        {
-          "action": "attack",
-          "press_at": 1,
-          "release_at": 3
-        }
-      ],
-      "capture_at": 12
-    },
-    {
-      "name": "combo_slash_b_mid",
-      "player_position": [
-        16,
-        0.3,
-        -2
-      ],
+      "name": "show_slash_b_live",
+      "player_position": [16, 0.3, -2],
       "camera_yaw_deg": 140,
       "camera_pitch_deg": -16,
       "camera_distance": 4.6,
       "warmup_frames": 50,
       "inputs": [
-        {
-          "action": "attack",
-          "press_at": 1,
-          "release_at": 3
-        },
-        {
-          "action": "attack",
-          "press_at": 8,
-          "release_at": 10
-        }
+        { "action": "attack", "press_at": 1, "release_at": 3 },
+        { "action": "attack", "press_at": 8, "release_at": 10 }
       ],
-      "capture_at": 38
+      "capture_at": 33
     },
     {
-      "name": "charge_tell",
-      "player_position": [
-        16,
-        0.3,
-        -2
-      ],
+      "name": "show_spin_live",
+      "player_position": [16, 0.3, -2],
       "camera_yaw_deg": 140,
       "camera_pitch_deg": -16,
-      "camera_distance": 4.6,
+      "camera_distance": 5.4,
       "warmup_frames": 50,
-      "inputs": [
-        {
-          "action": "attack",
-          "press_at": 1
-        }
-      ],
-      "capture_at": 70
-    },
-    {
-      "name": "spin_live_start",
-      "player_position": [
-        16,
-        0.3,
-        -2
-      ],
-      "camera_yaw_deg": 140,
-      "camera_pitch_deg": -16,
-      "camera_distance": 5.0,
-      "warmup_frames": 50,
-      "inputs": [
-        {
-          "action": "attack",
-          "press_at": 1,
-          "release_at": 66
-        }
-      ],
-      "capture_at": 80
-    },
-    {
-      "name": "spin_live_mid",
-      "player_position": [
-        16,
-        0.3,
-        -2
-      ],
-      "camera_yaw_deg": 140,
-      "camera_pitch_deg": -16,
-      "camera_distance": 5.0,
-      "warmup_frames": 50,
-      "inputs": [
-        {
-          "action": "attack",
-          "press_at": 1,
-          "release_at": 66
-        }
-      ],
-      "capture_at": 83
-    },
-    {
-      "name": "spin_live_late",
-      "player_position": [
-        16,
-        0.3,
-        -2
-      ],
-      "camera_yaw_deg": 140,
-      "camera_pitch_deg": -16,
-      "camera_distance": 5.0,
-      "warmup_frames": 50,
-      "inputs": [
-        {
-          "action": "attack",
-          "press_at": 1,
-          "release_at": 66
-        }
-      ],
-      "capture_at": 92
+      "inputs": [{ "action": "attack", "press_at": 1, "release_at": 66 }],
+      "capture_at": 82
     }
   ]
 }

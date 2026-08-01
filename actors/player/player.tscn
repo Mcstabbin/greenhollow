@@ -1,4 +1,4 @@
-[gd_scene load_steps=46 format=3]
+[gd_scene load_steps=49 format=3]
 
 [ext_resource type="Script" path="res://actors/player/player.gd" id="1_player"]
 [ext_resource type="PackedScene" path="res://art/models/character.glb" id="2_character"]
@@ -18,6 +18,7 @@
 [ext_resource type="AudioStream" path="res://actors/player/audio/charge_ready.tres" id="16_charge"]
 [ext_resource type="AudioStream" path="res://actors/player/audio/hit.tres" id="17_hit"]
 [ext_resource type="Script" path="res://actors/player/sword_trail.gd" id="18_trail"]
+[ext_resource type="Script" path="res://actors/player/spin_ring.gd" id="19_ring"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.4
@@ -35,35 +36,51 @@ size = Vector2(2, 2)
 [sub_resource type="SphereShape3D" id="SphereShape3D_interact"]
 radius = 2.8
 
+; Sword proportions. Character is scaled x2, so these read at twice the number:
+; the blade is 0.42 -> 0.84 m on a 2.2 m character. The earlier 0.3 (0.6 m) blade
+; was proportionally a dagger and a critic looking at a gameplay-camera frame
+; could not find it at all.
 [sub_resource type="BoxMesh" id="BoxMesh_handle"]
-size = Vector3(0.05, 0.13, 0.05)
+size = Vector3(0.06, 0.14, 0.06)
 
 [sub_resource type="BoxMesh" id="BoxMesh_guard"]
-size = Vector3(0.22, 0.04, 0.07)
+size = Vector3(0.28, 0.05, 0.08)
 
 [sub_resource type="BoxMesh" id="BoxMesh_blade"]
-size = Vector3(0.1, 0.3, 0.035)
+size = Vector3(0.135, 0.42, 0.045)
 
+; Radius matched to the blade mesh's own half-width rather than kept thinner than
+; it: 0.135 x 2 is a 0.27 m wide blade, so a 0.26 m capsule is the sword, not a
+; generosity fudge. The previous 0.075 was a third of the mesh, which left the
+; combo's second swing reaching a target in front by about a centimetre.
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_blade"]
-radius = 0.075
-height = 0.34
+radius = 0.13
+height = 0.46
 
+; Markedly darker and cooler than the torso it swings across. The old
+; 0.79/0.84/0.90 steel was within a few percent of the white body, so at rest the
+; blade merged into the chest it hangs in front of.
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_blade"]
 resource_name = "toon_steel"
-albedo_color = Color(0.79, 0.84, 0.9, 1)
+albedo_color = Color(0.42, 0.5, 0.66, 1)
 roughness = 0.6
 diffuse_mode = 3
 specular_mode = 1
 
+; The hot core of the orange trail, not white. A white flash on a white torso is
+; invisible, which is exactly what the previous version was.
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_blade_live"]
 resource_name = "blade_live"
 shading_mode = 0
-albedo_color = Color(1, 1, 0.92, 1)
+albedo_color = Color(1, 0.8, 0.3, 1)
 
+; Cyan, so "charged and waiting" can never be confused with "blade live". Two
+; states, two hues, and the swing owns the warm one because it is the one that has
+; to fight a green background.
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_blade_charged"]
 resource_name = "blade_charged"
 shading_mode = 0
-albedo_color = Color(0.6, 0.96, 1, 1)
+albedo_color = Color(0.12, 0.9, 1, 1)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_trail"]
 resource_name = "sword_trail"
@@ -71,6 +88,23 @@ transparency = 1
 shading_mode = 0
 vertex_color_use_as_albedo = true
 albedo_color = Color(1, 1, 1, 1)
+cull_mode = 2
+disable_receive_shadows = true
+
+; `rings` is the subdivision of the MAIN circle and `ring_segments` the tube's
+; cross-section, not the other way round. At rings = 4 this drew a diamond, which
+; is what the first capture showed.
+[sub_resource type="TorusMesh" id="TorusMesh_spin"]
+inner_radius = 0.76
+outer_radius = 1.0
+rings = 32
+ring_segments = 6
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ring"]
+resource_name = "spin_ring"
+transparency = 1
+shading_mode = 0
+albedo_color = Color(1, 0.5, 0.08, 1)
 cull_mode = 2
 disable_receive_shadows = true
 
@@ -187,13 +221,13 @@ mesh = SubResource("BoxMesh_handle")
 surface_material_override/0 = ExtResource("6_wood")
 
 [node name="Guard" type="MeshInstance3D" parent="Rig/Character/character/root/torso/arm-right/SwordGrip"]
-position = Vector3(0, 0.12, 0)
+position = Vector3(0, 0.125, 0)
 cast_shadow = 0
 mesh = SubResource("BoxMesh_guard")
 surface_material_override/0 = ExtResource("7_gold")
 
 [node name="Blade" type="MeshInstance3D" parent="Rig/Character/character/root/torso/arm-right/SwordGrip"]
-position = Vector3(0, 0.28, 0)
+position = Vector3(0, 0.35, 0)
 material_override = SubResource("StandardMaterial3D_blade")
 cast_shadow = 0
 mesh = SubResource("BoxMesh_blade")
@@ -201,7 +235,7 @@ mesh = SubResource("BoxMesh_blade")
 ; Layer 5 player_hitbox, mask 6 enemy_hurtbox. Armed only by the clips'
 ; _anim_hitbox_on keyframe; monitoring is off at rest.
 [node name="HitBox" type="Area3D" parent="Rig/Character/character/root/torso/arm-right/SwordGrip"]
-position = Vector3(0, 0.26, 0)
+position = Vector3(0, 0.35, 0)
 collision_layer = 16
 collision_mask = 32
 monitoring = false
@@ -212,18 +246,20 @@ amount = 1
 shape = SubResource("CapsuleShape3D_blade")
 
 [node name="BladeBase" type="Node3D" parent="Rig/Character/character/root/torso/arm-right/SwordGrip"]
-position = Vector3(0, 0.1, 0)
+position = Vector3(0, 0.14, 0)
 
 [node name="BladeTip" type="Node3D" parent="Rig/Character/character/root/torso/arm-right/SwordGrip"]
-position = Vector3(0, 0.5, 0)
+position = Vector3(0, 0.6, 0)
 
+; Cyan to match blade_charged, and bright enough to tint the grass — the charge
+; threshold has to be visible as well as audible, and a 2.2-energy light was not.
 [node name="ChargeGlow" type="OmniLight3D" parent="Rig/Character/character/root/torso/arm-right/SwordGrip"]
-position = Vector3(0, 0.3, 0)
+position = Vector3(0, 0.36, 0)
 visible = false
-light_color = Color(0.6, 0.95, 1, 1)
-light_energy = 2.2
+light_color = Color(0.5, 0.96, 1, 1)
+light_energy = 4.0
 shadow_enabled = false
-omni_range = 0.9
+omni_range = 1.4
 
 [node name="GroundMarker" type="MeshInstance3D" parent="Rig"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.03, 0)
@@ -299,6 +335,18 @@ material_override = SubResource("StandardMaterial3D_trail")
 script = ExtResource("18_trail")
 blade_base = NodePath("../Rig/Character/character/root/torso/arm-right/SwordGrip/BladeBase")
 blade_tip = NodePath("../Rig/Character/character/root/torso/arm-right/SwordGrip/BladeTip")
+
+; The spin's ground read. Authored at radius 1 so the script's scale IS the radius.
+; A child of the Player, not of Rig: the rig's root spins twice inside the clip and
+; a ring does not want to inherit that.
+[node name="SpinRing" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.07, 0)
+visible = false
+cast_shadow = 0
+extra_cull_margin = 8.0
+mesh = SubResource("TorusMesh_spin")
+surface_material_override/0 = SubResource("StandardMaterial3D_ring")
+script = ExtResource("19_ring")
 
 [node name="CameraPivot" type="Node3D" parent="."]
 

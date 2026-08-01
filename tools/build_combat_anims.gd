@@ -57,6 +57,20 @@ const GRIP_REST := Vector3(0.0, 25.0, 14.0)
 ## the tip traces the widest, most readable arc it can.
 const GRIP_CUT := Vector3(0.0, 5.0, 95.0)
 
+## Where the antenna's knob sits. The glb parks it at torso-local 0.60, which is
+## exactly the top of the torso — so the 0.056-wide stalk is fully exposed and the
+## purple knob floats 0.20 m (world) clear of the white body. Measured, and two
+## independent viewers read it as a head broken off its neck rather than as a
+## style. 0.485 seats the knob's underside 0.03 m inside the torso and hides the
+## stalk completely.
+##
+## It has to be an animation track rather than a node property because the antenna
+## lives inside an instanced .glb, and CLAUDE.md records that property overrides
+## on those nodes are silently dropped. The library is ours, so a POSITION_3D key
+## in every clip is the supported way to say this. Verified: no clip in
+## character.glb animates antenna position, so this track cannot collide with one.
+const ANT_SEAT := Vector3(0.0, 0.485, 0.0)
+
 ## Rest positions, read off the glb's `static` clip.
 const REST_ROOT := Vector3(0.0, 0.02375, 0.0)
 const REST_LEG_L := Vector3(0.125, 0.17625, -0.02375)
@@ -104,6 +118,10 @@ func _copy_glb_clips(lib: AnimationLibrary) -> void:
 		var grip := copy.add_track(Animation.TYPE_ROTATION_3D)
 		copy.track_set_path(grip, NodePath(N_GRIP))
 		copy.rotation_track_insert_key(grip, 0.0, _q(GRIP_REST))
+		# Seat the antenna knob on the torso. See ANT_SEAT.
+		var ant_pos := copy.add_track(Animation.TYPE_POSITION_3D)
+		copy.track_set_path(ant_pos, NodePath(N_ANT))
+		copy.position_track_insert_key(ant_pos, 0.0, ANT_SEAT)
 		# Locomotion has to loop; glTF imports everything as LOOP_NONE.
 		copy.loop_mode = Animation.LOOP_LINEAR if name in ["idle", "walk"] else Animation.LOOP_NONE
 		lib.add_animation(StringName(name), copy)
@@ -153,35 +171,107 @@ const SPIN_HIT_ON := 7.0 * F       # 0.11667 -> measures 167 ms
 const SPIN_HIT_OFF := 25.0 * F     # 0.41667 -> 300 ms live
 const SPIN_CANCEL := 36.0 * F      # 0.600   -> 650 ms commitment
 
+## The trail is a separate window from the hitbox, opened earlier and closed later.
+## A 100 ms live window is the right *gameplay* number and the wrong *drawing*
+## number: the readable part of a swing is the whole arc, wind-up included. Keeping
+## the two apart means the ribbon can be lengthened without moving a single
+## measured value, which is why the probe numbers below are identical to the ones
+## the previous round landed.
+const TRAIL_LEAD := 3.0 * F        # ribbon opens 3 frames before the hitbox
+## And closes 7 frames after, which runs it well into the recovery. That is on
+## purpose: both slashes bring the blade back up on the follow-through, so letting
+## the ribbon keep sampling gives the recovery frame a smear AND a lit blade
+## instead of a bare pose with a fading smudge behind it.
+const TRAIL_LAG := 7.0 * F
+
+
+## Where the blade is allowed to be, and why these two clips look nothing alike.
+##
+## MEASURED reachable envelope, in player-local metres (tools/_arc.gd, deleted):
+## the sword shoulder sits at (0.60, 0.64, 0.07) — low on the body, because this
+## rig's arms are stubby side-flippers on a box — and hand-plus-blade reaches about
+## 2.3 m. The torso occupies |x| < 0.67, y 0.41 to 1.61. The antenna knob, once
+## seated, tops out at y 1.97.
+##
+## From the default camera — behind the player, torso height, looking slightly
+## down — the body owns the middle of the frame and nothing else. So the only
+## screen space a swing can be seen in is:
+##
+##   ABOVE the knob   y > 2.0, which needs the arm near vertical, so x stays 0..1.2
+##   OUTSIDE the ribs |x| > 0.9, which needs the arm near horizontal, so y stays low
+##   NEARER than the body  z > +0.8, which draws over the torso
+##
+## Those three are mutually exclusive on this rig: high means narrow, wide means
+## low. That is exactly the trap the previous round fell into — it put the whole
+## arc at chest height in front of the chest, which is the one volume the camera
+## looks *through the character* to reach, and a fresh critic could not tell the
+## frame from an idle pose.
+##
+## So the two slashes take two different escapes, which is also what stops the
+## combo reading as the same swing twice:
+##
+##   slash_a  DESCENDING. Starts with the blade straight up above the shoulder,
+##            well clear of the knob, and falls through the whole right flank.
+##            Vertical at the top, wide at the bottom, unoccluded throughout.
+##   slash_b  RISING, and crossing. Winds up across the body to the low left, then
+##            comes up left-to-right and finishes above the shoulder. The mirror
+##            image of slash_a's path, travelled in the opposite direction, so on
+##            screen one arc sweeps down-right and the other up-right.
+##
+## Both are joined by the trail (actors/player/sword_trail.gd), which is what
+## turns six ticks of arm rotation into a shape a still frame can hold.
 
 func _build_slash_a() -> Animation:
-	# Overhead-right, then a level sweep across the front. Kept at chest height on
-	# purpose: an earlier pass let the arc finish at ankle level, where the blade
-	# read as a stick in the grass and half the swing was hidden behind a log. A
-	# slash wants sky or trees behind it. Blade elevation works out as
-	# 90 - (grip_z + arm_z), so arm_z is what keeps the cut up.
+	# Overhead chop down the right flank. arm_r.z is the elevation: 0 is straight
+	# out sideways, negative is up, and it must not go far past 0 on the way down
+	# or the tip goes underground (shoulder is only 0.64 m up and the reach is
+	# 2.3 m). arm_r.y carries the blade forward across the swing so it lands ahead
+	# of the player rather than beside them.
 	var keys: Array = [
-		[0.0 * F, {"grip": Vector3(0, 20, 40), "torso": Vector3(0, -20, 0), "arm_r": Vector3(0, -25, -70),
-			"arm_l": Vector3(0, 10, -25), "ant": Vector3(0, 15, 6)}],
-		[2.0 * F, {"grip": GRIP_CUT, "root_y": -0.022, "root": Vector3(-6, 0, 0), "torso": Vector3(4, -36, 0),
-			"arm_r": Vector3(0, -55, -112), "arm_l": Vector3(0, 26, -42),
-			"ant": Vector3(0, 32, 10), "leg_r": Vector3(-10, 0, 0)}],
-		[5.0 * F, {"grip": GRIP_CUT, "root_y": -0.008, "root": Vector3(4, 0, 0), "torso": Vector3(2, -14, 0),
-			"arm_r": Vector3(0, -30, -42), "arm_l": Vector3(0, 16, -22),
-			"ant": Vector3(0, 14, 4), "leg_l": Vector3(-8, 0, 0)}],
-		[8.0 * F, {"grip": GRIP_CUT, "root": Vector3(8, 0, 0), "torso": Vector3(4, 20, 0),
-			"arm_r": Vector3(0, 34, -26), "arm_l": Vector3(0, -20, 10),
-			"ant": Vector3(0, -24, -8), "leg_l": Vector3(-16, 0, 0)}],
-		[11.0 * F, {"grip": GRIP_CUT, "root": Vector3(6, 0, 0), "torso": Vector3(6, 38, 0),
-			"arm_r": Vector3(0, 104, -8), "arm_l": Vector3(0, -42, 20),
-			"ant": Vector3(0, -42, -14), "leg_l": Vector3(-14, 0, 0),
-			"leg_r": Vector3(6, 0, 0)}],
-		[16.0 * F, {"grip": Vector3(0, 15, 70), "root": Vector3(2, 0, 0), "torso": Vector3(2, 18, 0),
-			"arm_r": Vector3(0, 56, -30), "arm_l": Vector3(0, -20, 6),
-			"ant": Vector3(0, -14, -4), "leg_l": Vector3(-8, 0, 0)}],
-		[21.0 * F, {"grip": Vector3(0, 20, 35), "torso": Vector3(0, 4, 0), "arm_r": Vector3(0, 16, -46),
-			"arm_l": Vector3(0, -4, -14), "ant": Vector3(0, -2, 0),
-			"leg_l": Vector3(-3, 0, 0)}],
+		[0.0 * F, {"grip": Vector3(0, 14, 62), "torso": Vector3(-4, -12, 0), "arm_r": Vector3(0, -18, -74),
+			"arm_l": Vector3(0, 16, -28), "ant": Vector3(0, 14, 8)}],
+		# Wind-up peak: blade vertical above the shoulder, body coiled back. The
+		# tip is measured at y 2.9, a metre clear of the knob.
+		[2.0 * F, {"grip": Vector3(0, 8, 88), "root_y": -0.018, "root": Vector3(-8, 0, 0),
+			"torso": Vector3(-16, -20, 0), "arm_r": Vector3(0, -30, -96),
+			"arm_l": Vector3(0, 30, -42), "ant": Vector3(0, 30, 14),
+			"leg_r": Vector3(-10, 0, 0)}],
+		# Hitbox on. Still high — the first live frame has to be legible too.
+		[5.0 * F, {"grip": GRIP_CUT, "root_y": -0.010, "root": Vector3(-2, 0, 0),
+			"torso": Vector3(-6, -12, 0), "arm_r": Vector3(0, -16, -86),
+			"arm_l": Vector3(0, 26, -36), "ant": Vector3(0, 22, 10),
+			"leg_r": Vector3(-6, 0, 0)}],
+		[7.0 * F, {"grip": GRIP_CUT, "root_y": -0.022, "root": Vector3(6, 0, 0),
+			"torso": Vector3(6, 4, 0), "arm_r": Vector3(0, 12, -60),
+			"arm_l": Vector3(0, 12, -18), "ant": Vector3(0, -10, -18),
+			"leg_l": Vector3(-12, 0, 0)}],
+		# arm_r.y climbing hard from here is what carries the blade ACROSS the front
+		# rather than past the player's flank, and it is not optional: an arc kept
+		# entirely out to the side looked good and measured damage_one_swing = 0. To
+		# reach something standing in front of you the blade has to pass in front of
+		# you, which from directly behind is the one place the body hides. So the
+		# swing spends its first four live frames in clear air and its last two
+		# crossing the front — by which point the ribbon already holds the shape of
+		# the whole arc, which is what a still frame reads.
+		[9.0 * F, {"grip": GRIP_CUT, "root_y": -0.030, "root": Vector3(10, 0, 0),
+			"torso": Vector3(12, 16, 0), "arm_r": Vector3(0, 44, -42),
+			"arm_l": Vector3(0, 0, -8), "ant": Vector3(0, -22, -28),
+			"leg_l": Vector3(-18, 0, 0)}],
+		# Hitbox off with the blade through the front at chest height. The descent
+		# stops HERE: the tip reaches 2.3 m from a shoulder only 0.64 m off the
+		# ground, so a few more degrees of arm_r.z buries it, which is exactly what
+		# an earlier pass did — it finished the swing underground.
+		[11.0 * F, {"grip": GRIP_CUT, "root_y": -0.034, "root": Vector3(10, 0, 0),
+			"torso": Vector3(16, 26, 0), "arm_r": Vector3(0, 84, -32),
+			"arm_l": Vector3(0, -8, -2), "ant": Vector3(0, -26, -32),
+			"leg_l": Vector3(-20, 0, 0), "leg_r": Vector3(8, 0, 0)}],
+		[16.0 * F, {"grip": Vector3(0, 12, 68), "root_y": -0.018, "root": Vector3(4, 0, 0),
+			"torso": Vector3(14, 8, 0), "arm_r": Vector3(0, 30, -26),
+			"arm_l": Vector3(0, -2, -12), "ant": Vector3(0, -12, -14),
+			"leg_l": Vector3(-10, 0, 0)}],
+		[21.0 * F, {"grip": Vector3(0, 20, 34), "torso": Vector3(4, 2, 0), "arm_r": Vector3(0, 12, -38),
+			"arm_l": Vector3(0, 2, -14), "ant": Vector3(0, -4, -2),
+			"leg_l": Vector3(-4, 0, 0)}],
 		[27.0 * F, {"arm_r": Vector3(0, 0, 25)}],
 	]
 	return _assemble("slash_a", SLASH_LEN, keys,
@@ -189,31 +279,53 @@ func _build_slash_a() -> Animation:
 
 
 func _build_slash_b() -> Animation:
-	# The return stroke: a rising backhand that starts where slash_a finished and
-	# sweeps back out to high-right. Sharing that endpoint is what makes the pair
-	# read as one continuous combo rather than two copies of the same swing.
+	# The return stroke: the same right flank travelled the OTHER WAY. It cocks low
+	# and back — the blade ends up behind the player, between them and the camera —
+	# and rises left-to-right to finish vertical above the shoulder, exactly where
+	# slash_a starts. So the combo reads as down, then up, then down again.
+	#
+	# Why not a cut across to the player's left, which is the obvious complement?
+	# Measured: the sword shoulder is offset 0.60 m to the right, so reaching across
+	# only gets the tip to x -1.1 while reaching out gets it to x +2.3. A left-side
+	# cut spends its whole live window barely clear of the ribs. Direction of travel
+	# is a real difference between two swings; being invisible is not.
 	var keys: Array = [
-		[0.0 * F, {"grip": GRIP_CUT, "torso": Vector3(4, 30, 0), "arm_r": Vector3(0, 98, -12),
-			"arm_l": Vector3(0, -30, 12), "ant": Vector3(0, -28, -8)}],
-		[2.0 * F, {"grip": GRIP_CUT, "root_y": -0.016, "root": Vector3(-4, 0, 0), "torso": Vector3(8, 40, 0),
-			"arm_r": Vector3(0, 126, -2), "arm_l": Vector3(0, -44, 20),
-			"ant": Vector3(0, -38, -12), "leg_l": Vector3(-12, 0, 0)}],
-		[5.0 * F, {"grip": GRIP_CUT, "root": Vector3(2, 0, 0), "torso": Vector3(4, 14, 0),
-			"arm_r": Vector3(0, 60, -28), "arm_l": Vector3(0, -24, 0),
-			"ant": Vector3(0, -12, -4), "leg_r": Vector3(-8, 0, 0)}],
-		[8.0 * F, {"grip": GRIP_CUT, "root": Vector3(-2, 0, 0), "torso": Vector3(0, -16, 0),
-			"arm_r": Vector3(0, 0, -52), "arm_l": Vector3(0, 14, -18),
-			"ant": Vector3(0, 22, 8), "leg_r": Vector3(-14, 0, 0)}],
-		[11.0 * F, {"grip": GRIP_CUT, "root": Vector3(-6, 0, 0), "torso": Vector3(-4, -36, 0),
-			"arm_r": Vector3(0, -48, -102), "arm_l": Vector3(0, 28, -34),
-			"ant": Vector3(0, 38, 14), "leg_r": Vector3(-12, 0, 0),
-			"leg_l": Vector3(6, 0, 0)}],
-		[16.0 * F, {"grip": Vector3(0, 15, 70), "root": Vector3(-2, 0, 0), "torso": Vector3(-2, -16, 0),
-			"arm_r": Vector3(0, -22, -70), "arm_l": Vector3(0, 14, -20),
-			"ant": Vector3(0, 16, 6), "leg_r": Vector3(-7, 0, 0)}],
-		[21.0 * F, {"grip": Vector3(0, 20, 35), "torso": Vector3(0, -4, 0), "arm_r": Vector3(0, -6, -40),
-			"arm_l": Vector3(0, 4, -8), "ant": Vector3(0, 4, 2),
-			"leg_r": Vector3(-2, 0, 0)}],
+		[0.0 * F, {"grip": GRIP_CUT, "torso": Vector3(16, 26, 0), "arm_r": Vector3(0, 84, -32),
+			"arm_l": Vector3(0, -8, -2), "ant": Vector3(0, -26, -32)}],
+		# Wind-up: blade dropped low across the front, shoulders coiled the opposite
+		# way to slash_a's so the pair counter-rotate.
+		[2.0 * F, {"grip": Vector3(0, 10, 80), "root_y": -0.022, "root": Vector3(8, 0, 0),
+			"torso": Vector3(18, 30, 0), "arm_r": Vector3(0, 96, -20),
+			"arm_l": Vector3(0, -24, -22), "ant": Vector3(0, 20, -14),
+			"leg_r": Vector3(-12, 0, 0)}],
+		# Hitbox on with the blade still across the front, so the follow-up reaches
+		# whatever the first swing hit. This is the frame that has to do the damage —
+		# and it is the mirror of slash_a, which spends its LAST live frames here.
+		[5.0 * F, {"grip": GRIP_CUT, "root_y": -0.026, "root": Vector3(6, 0, 0),
+			"torso": Vector3(14, 24, 0), "arm_r": Vector3(0, 76, -26),
+			"arm_l": Vector3(0, -18, -16), "ant": Vector3(0, 16, -10),
+			"leg_r": Vector3(-14, 0, 0)}],
+		[7.0 * F, {"grip": GRIP_CUT, "root_y": -0.012, "root": Vector3(0, 0, 0),
+			"torso": Vector3(4, 8, 0), "arm_r": Vector3(0, 44, -50),
+			"arm_l": Vector3(0, -2, -12), "ant": Vector3(0, 4, -2),
+			"leg_l": Vector3(-6, 0, 0)}],
+		[9.0 * F, {"grip": GRIP_CUT, "root_y": 0.004, "root": Vector3(-6, 0, 0),
+			"torso": Vector3(-8, -10, 0), "arm_r": Vector3(0, 16, -78),
+			"arm_l": Vector3(0, 12, -20), "ant": Vector3(0, -10, 10),
+			"leg_l": Vector3(-10, 0, 0)}],
+		# Hitbox off with the blade vertical above the shoulder — a follow-through
+		# that is still legible five frames later, which is where recovery is shot.
+		[11.0 * F, {"grip": Vector3(0, 8, 92), "root_y": 0.010, "root": Vector3(-10, 0, 0),
+			"torso": Vector3(-14, -20, 0), "arm_r": Vector3(0, 0, -96),
+			"arm_l": Vector3(0, 20, -26), "ant": Vector3(0, -16, 18),
+			"leg_l": Vector3(-12, 0, 0), "leg_r": Vector3(6, 0, 0)}],
+		[16.0 * F, {"grip": Vector3(0, 12, 74), "root_y": -0.006, "root": Vector3(-4, 0, 0),
+			"torso": Vector3(-6, -10, 0), "arm_r": Vector3(0, 4, -70),
+			"arm_l": Vector3(0, 14, -22), "ant": Vector3(0, -8, 10),
+			"leg_l": Vector3(-7, 0, 0)}],
+		[21.0 * F, {"grip": Vector3(0, 20, 36), "torso": Vector3(-2, -2, 0), "arm_r": Vector3(0, 0, -40),
+			"arm_l": Vector3(0, 6, -16), "ant": Vector3(0, -2, 2),
+			"leg_l": Vector3(-3, 0, 0)}],
 		[27.0 * F, {"arm_r": Vector3(0, 0, 25)}],
 	]
 	return _assemble("slash_b", SLASH_LEN, keys,
@@ -221,37 +333,47 @@ func _build_slash_b() -> Animation:
 
 
 func _build_spin() -> Animation:
-	# Two full revolutions with the blade held out level. The hips carry the
-	# rotation, keyed every 120 degrees so quaternion slerp always takes the
-	# short way round and the spin never reverses.
+	# Two full revolutions. The hips carry the rotation, keyed every 120 degrees so
+	# quaternion slerp always takes the short way round and the spin never reverses.
+	#
+	# The blade is held at arm_r.z -30 rather than level: that puts the swept ring
+	# at about y 1.6 and radius 2.1, so its left and right lobes clear the ribs and
+	# its near lobe passes BETWEEN the camera and the body, where it draws over the
+	# torso. A ring at waist height did neither.
+	#
+	# The arms are deliberately NOT mirrored. A critic shown this front-on called
+	# the old pose a T-pose and wrote "symmetry kills motion": both arms were out at
+	# the same angle, so no frame of a two-revolution spin had a direction. Now the
+	# sword arm is up and swept forward and the off arm is down and tucked back.
 	var keys: Array = [
 		[0.0 * F, {"grip": Vector3(0, 20, 40), "torso": Vector3(0, 10, 0), "arm_r": Vector3(0, 30, -40),
 			"arm_l": Vector3(0, -10, -20), "ant": Vector3(0, 10, 0)}],
-		[3.0 * F, {"grip": Vector3(0, 10, 80), "root_y": -0.045, "root": Vector3(-8, 30, 0), "torso": Vector3(10, 24, 0),
-			"arm_r": Vector3(0, 60, -78), "arm_l": Vector3(0, -18, -34),
-			"ant": Vector3(0, 22, 0), "leg_l": Vector3(-14, 0, 0),
-			"leg_r": Vector3(-14, 0, 0)}],
-		# Blade snaps out level; from here the arms hold while the hips spin.
-		[7.0 * F, {"grip": GRIP_CUT, "root_y": -0.010, "root": Vector3(4, 0, 0), "torso": Vector3(10, 0, 0),
-			"arm_r": Vector3(0, 14, -20), "arm_l": Vector3(0, -14, -4),
+		# Crouch and coil, blade up. This is the frame that has to say "here it comes".
+		[3.0 * F, {"grip": Vector3(0, 8, 86), "root_y": -0.048, "root": Vector3(-8, 34, 0),
+			"torso": Vector3(-12, 26, 0), "arm_r": Vector3(0, -34, -92),
+			"arm_l": Vector3(0, 34, -18), "ant": Vector3(0, 24, 10),
+			"leg_l": Vector3(-16, 0, 0), "leg_r": Vector3(-16, 0, 0)}],
+		# Blade snaps out and up; from here the arms hold while the hips spin.
+		[7.0 * F, {"grip": GRIP_CUT, "root_y": -0.008, "root": Vector3(4, 0, 0), "torso": Vector3(8, 6, 0),
+			"arm_r": Vector3(0, 26, -30), "arm_l": Vector3(0, -30, 44),
 			"ant": Vector3(0, 0, -26), "leg_l": Vector3(-8, 0, 0)}],
-		[10.0 * F, {"grip": GRIP_CUT, "root_y": 0.014, "root": Vector3(4, -120, 0), "torso": Vector3(10, 0, 0),
-			"arm_r": Vector3(0, 16, -22), "arm_l": Vector3(0, -16, -2),
+		[10.0 * F, {"grip": GRIP_CUT, "root_y": 0.016, "root": Vector3(4, -120, 0), "torso": Vector3(8, 6, 0),
+			"arm_r": Vector3(0, 28, -32), "arm_l": Vector3(0, -32, 46),
 			"ant": Vector3(0, 0, -30), "leg_l": Vector3(-6, 0, 0)}],
-		[13.0 * F, {"grip": GRIP_CUT, "root_y": 0.020, "root": Vector3(4, -240, 0), "torso": Vector3(10, 0, 0),
-			"arm_r": Vector3(0, 14, -20), "arm_l": Vector3(0, -14, -4),
+		[13.0 * F, {"grip": GRIP_CUT, "root_y": 0.022, "root": Vector3(4, -240, 0), "torso": Vector3(8, 6, 0),
+			"arm_r": Vector3(0, 26, -30), "arm_l": Vector3(0, -30, 44),
 			"ant": Vector3(0, 0, -32), "leg_l": Vector3(-6, 0, 0)}],
-		[16.0 * F, {"grip": GRIP_CUT, "root_y": 0.020, "root": Vector3(4, -360, 0), "torso": Vector3(10, 0, 0),
-			"arm_r": Vector3(0, 16, -22), "arm_l": Vector3(0, -16, -2),
+		[16.0 * F, {"grip": GRIP_CUT, "root_y": 0.022, "root": Vector3(4, -360, 0), "torso": Vector3(8, 6, 0),
+			"arm_r": Vector3(0, 28, -32), "arm_l": Vector3(0, -32, 46),
 			"ant": Vector3(0, 0, -32), "leg_l": Vector3(-6, 0, 0)}],
-		[19.0 * F, {"grip": GRIP_CUT, "root_y": 0.014, "root": Vector3(4, -480, 0), "torso": Vector3(10, 0, 0),
-			"arm_r": Vector3(0, 14, -20), "arm_l": Vector3(0, -14, -4),
+		[19.0 * F, {"grip": GRIP_CUT, "root_y": 0.016, "root": Vector3(4, -480, 0), "torso": Vector3(8, 6, 0),
+			"arm_r": Vector3(0, 26, -30), "arm_l": Vector3(0, -30, 44),
 			"ant": Vector3(0, 0, -30), "leg_l": Vector3(-6, 0, 0)}],
-		[22.0 * F, {"grip": GRIP_CUT, "root_y": 0.006, "root": Vector3(4, -600, 0), "torso": Vector3(8, 0, 0),
-			"arm_r": Vector3(0, 16, -18), "arm_l": Vector3(0, -16, -6),
+		[22.0 * F, {"grip": GRIP_CUT, "root_y": 0.006, "root": Vector3(4, -600, 0), "torso": Vector3(6, 6, 0),
+			"arm_r": Vector3(0, 26, -26), "arm_l": Vector3(0, -28, 42),
 			"ant": Vector3(0, 0, -24), "leg_l": Vector3(-4, 0, 0)}],
-		[25.0 * F, {"grip": GRIP_CUT, "root": Vector3(2, -720, 0), "torso": Vector3(6, 0, 0),
-			"arm_r": Vector3(0, 20, -10), "arm_l": Vector3(0, -20, -10),
+		[25.0 * F, {"grip": GRIP_CUT, "root": Vector3(2, -720, 0), "torso": Vector3(4, 4, 0),
+			"arm_r": Vector3(0, 22, -18), "arm_l": Vector3(0, -22, 30),
 			"ant": Vector3(0, 0, -16)}],
 		# Recovery: absorb, then stand up.
 		[30.0 * F, {"grip": Vector3(0, 15, 60), "root_y": -0.030, "root": Vector3(-10, -720, 0), "torso": Vector3(12, -8, 0),
@@ -264,14 +386,14 @@ func _build_spin() -> Animation:
 		[42.0 * F, {"root": Vector3(0, -720, 0)}],
 	]
 	return _assemble("spin_attack", SPIN_LEN, keys,
-		SPIN_HIT_ON, SPIN_HIT_OFF, SPIN_CANCEL)
+		SPIN_HIT_ON, SPIN_HIT_OFF, SPIN_CANCEL, true)
 
 
 ## Turn a pose list into the same ten transform tracks the glb clips use — same
 ## track set, so the AnimationTree can cross-fade between locomotion and attacks
 ## without a limb popping back to rest mid-blend — plus the method tracks.
 func _assemble(name: String, length: float, keys: Array,
-		hit_on: float, hit_off: float, cancel: float) -> Animation:
+		hit_on: float, hit_off: float, cancel: float, spin_ring := false) -> Animation:
 	var a := Animation.new()
 	a.resource_name = name
 	a.length = length
@@ -287,12 +409,16 @@ func _assemble(name: String, length: float, keys: Array,
 	var arm_l_rot := _track(a, Animation.TYPE_ROTATION_3D, N_ARM_L)
 	var arm_r_rot := _track(a, Animation.TYPE_ROTATION_3D, N_ARM_R)
 	var ant_rot := _track(a, Animation.TYPE_ROTATION_3D, N_ANT)
+	var ant_pos := _track(a, Animation.TYPE_POSITION_3D, N_ANT)
 	var grip_rot := _track(a, Animation.TYPE_ROTATION_3D, N_GRIP)
 
 	# The legs never translate in these clips, but the tracks have to exist or
 	# blending out of `walk` (which does translate them) leaves them displaced.
 	a.position_track_insert_key(leg_l_pos, 0.0, REST_LEG_L)
 	a.position_track_insert_key(leg_r_pos, 0.0, REST_LEG_R)
+	# Same reason the grip is keyed in every clip: a node driven by only some clips
+	# snaps back to whatever the last one left it at.
+	a.position_track_insert_key(ant_pos, 0.0, ANT_SEAT)
 
 	for entry_v: Array in keys:
 		var t: float = entry_v[0]
@@ -313,9 +439,25 @@ func _assemble(name: String, length: float, keys: Array,
 	_call(a, m, hit_on, "_anim_hitbox_on")
 	_call(a, m, hit_off, "_anim_hitbox_off")
 	_call(a, m, cancel, "_anim_allow_cancel")
+	# The ribbon, on its own wider window. See TRAIL_LEAD / TRAIL_LAG.
+	_call(a, m, maxf(hit_on - TRAIL_LEAD, F), "_anim_trail_on")
+	_call(a, m, minf(hit_off + TRAIL_LAG, length - 2.0 * F), "_anim_trail_off")
+	# One frame early, not on hit_on: two keys at the same time on one method track
+	# is an insert-over-an-existing-key, and only one of them survives.
+	if spin_ring:
+		_call(a, m, hit_on - F, "_anim_spin_ring")
 	# One frame inside the clip: a key exactly at `length` is not guaranteed to
 	# fire on a non-looping clip that stops at its own end.
-	_call(a, m, length - F, "_anim_attack_finished")
+	#
+	# The clip name is passed as an argument, and it is load-bearing. When the combo
+	# chains, the AnimationTree cross-fades slash_a out over 0.06 s while slash_b
+	# plays — and the OUTGOING clip keeps advancing and keeps firing its own method
+	# keys. Its end key therefore landed two frames into the follow-up and ended it
+	# immediately: the second swing's clip went on playing, and arming and
+	# disarming the hitbox, from inside the Idle state. Every timing measurement
+	# still passed, which is how it survived. The player ignores an end key that
+	# names a clip other than the one it is currently swinging.
+	_call(a, m, length - F, "_anim_attack_finished", [name])
 	return a
 
 
@@ -327,8 +469,8 @@ func _track(a: Animation, type: Animation.TrackType, path: String) -> int:
 	return idx
 
 
-func _call(a: Animation, track: int, time: float, method: String) -> void:
-	a.track_insert_key(track, time, {"method": StringName(method), "args": []})
+func _call(a: Animation, track: int, time: float, method: String, args: Array = []) -> void:
+	a.track_insert_key(track, time, {"method": StringName(method), "args": args})
 
 
 func _q(euler_deg: Variant) -> Quaternion:

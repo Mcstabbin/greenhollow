@@ -1,5 +1,10 @@
 # Prior art — read before building combat
 
+> Companion docs: [PRIOR-ART-VISUAL.md](PRIOR-ART-VISUAL.md) for outlines, trails,
+> hit feedback and state legibility — read that one before touching anything meant
+> to be *seen*. Architecture, style and testing prior art is at the bottom of this
+> file.
+
 `CLAUDE.md` Rule 1 requires reading a real, maintained implementation end-to-end
 before writing any of a new system. This is the result of that pass for combat,
 lock-on and hit feedback, so the next session starts from here instead of from a
@@ -119,3 +124,113 @@ that has to match it.
 Snaiel's `DamageSource.instance: int` increments per swing; the hitbox records
 `_successful_hits[damage_source] = instance`. The same sword re-entering during
 one swing is ignored; the next swing lands.
+
+---
+
+# Prior art — architecture, style, testing
+
+Second Rule 1 pass, into how strong Godot 4 codebases structure things we do by
+hand. Verified via the GitHub API 2026-07-31.
+
+| Repo | ★ | Licence | Take |
+|---|---|---|---|
+| [godot-demo-projects `finite_state_machine`](https://github.com/godotengine/godot-demo-projects/tree/master/2d/finite_state_machine) | 9268 | MIT | The **pushdown stack**. `finished.emit(PLAYER_STATE.previous)` makes its whole attack state two lines and it does not know Idle exists |
+| [MewPurPur/GodSVG](https://github.com/MewPurPur/GodSVG) | 2648 | MIT | Cleanest large GDScript codebase. The only one with an enforced *written* style contract. 3 autoloads |
+| [ramokz/phantom-camera](https://github.com/ramokz/phantom-camera) | 3481 | MIT | Registry-autoload pattern: nodes self-register into a typed array behind a read-only getter |
+| [Orama-Interactive/Pixelorama](https://github.com/Orama-Interactive/Pixelorama) | 10028 | MIT | Its CI recipe, adopted here. Also the **cautionary tale** — `Global.gd` is 73 KB and leaf data classes reach through it to retitle tabs. Stars do not certify architecture; read the leaf classes |
+| [gdUnit4](https://github.com/godot-gdunit-labs/gdUnit4) | 1176 | MIT | Explicitly supports 4.7/4.7.1. `scene_runner` + `simulate_action_pressed` is the standard for input-driven integration tests — `tools/probe.gd` is a hand-rolled version of it |
+| [bitbrain/beehave](https://github.com/bitbrain/beehave) | 3205 | MIT | Pure GDScript, 4.7 in CI. The de-facto enemy-AI answer for sub-wave B |
+| [Scony/godot-gdscript-toolkit](https://github.com/Scony/godot-gdscript-toolkit) | 1585 | MIT | `gdlint` / `gdformat`. In CI here |
+| [Nodragem/top-down-action-adventure-starter-kit](https://github.com/Nodragem/top-down-action-adventure-starter-kit) | 528 | CC0 | **Anti-pattern, our exact genre.** `@export var ui_hearts: Array[TextureRect]` inside the health component, and `if body is PlayerEntity` in the enemy weapon. Result: three incompatible health systems and enemies that cannot hurt each other |
+
+## What we deliberately do NOT change
+
+1. **Keep the hand-rolled FSM.** LimboAI still ships a GDExtension for **4.6 only**
+   (4.7 needs their custom engine build, which breaks the Standard-build rule);
+   gd-YAFSM is going stale; the newest graph FSM is self-declared alpha. The
+   **996★ GDQuest 3D third-person controller has no gameplay FSM at all** — it is a
+   flat `_physics_process` plus an `AnimationNodeStateMachine` for visuals only.
+   Every strong project hand-rolls this.
+2. **Keep typed `@export` transitions and `physics_update` returning the next
+   state.** Both references resolve transitions by *string name*, so a broken wire
+   is a runtime `printerr`, not a load error. One 226★ project does
+   `states[child.name.to_lower()]`. Our typed version is strictly better on the axis
+   it was chosen for.
+3. **Keep the windowed screenshot harness.** `--headless` has no renderer,
+   off-screen rendering is still only a proposal, and there is no Xvfb on Windows.
+   The only two Godot VRT tools in existence have 21 and 0 stars. We are ahead of
+   the ecosystem here.
+4. **Keep `probe.gd` as a scene-based harness.** Port *assertions* into gdUnit4 if
+   useful; do not dissolve the measurement harness into it.
+5. **Keep the feature-first folder layout.** It matches the engine's own
+   `3d/platformer`. Type-folder layouts (`Scenes/`, `Scripts/`) are the Godot 3
+   legacy you can date a project by.
+6. **Do not chase `untyped_declaration=2`.** Popular advice; **zero** large shipped
+   codebases run it. GodSVG mandates static typing in prose and enforces it by
+   review, not by the compiler.
+
+## The one real coupling flaw to fix
+
+`PlayerAttackState` carries three `@export`s (`idle_state`, `move_state`,
+`air_state`) whose only job is answering *"where do I go back to"*. Both references
+solve this without the state knowing: the official demo pushes onto `states_stack`
+and returns with `PLAYER_STATE.previous`; Snaiel calls
+`parent_state.transition_to_previous_state()`. Keep typed exports for **deliberate**
+transitions; use a stack for **returns**.
+
+## The animation façade convention
+
+`class_name CharacterSkin extends Node3D` with intention-named methods — `jump()`,
+`fall()`, `punch()` — wrapping the `AnimationTree`, so **no gameplay code ever
+contains a `"parameters/…"` string.** The same `*_skin.gd` pattern appears
+independently in four well-starred repos (GDQuest's 3D controller and 3D-Characters,
+`godot-4-new-features`, gtibo/Godot-Plush-Character). `gdlint`'s
+`max-public-methods` on `player.gd` flagged the same refactor independently.
+
+## Signal routing without a god object — a ladder, not one answer
+
+1. Direct connection at composition time. The docs: *"If at all possible, you should
+   design scenes to have no dependencies."*
+2. **Registry autoload** — nodes self-register into a typed array.
+3. **Domain-scoped typed relay**, forwarding with `Signal.emit` as a `Callable`:
+   `root.xnodes_added.connect(layout_changed.emit.unbind(1))`. No hand-written
+   forwarders.
+4. Observable `Resource` (`value` + `changed`), injected by `@export`. Its edge over
+   a bus: a bus has no *current* value.
+5. Scoped bus named for its boundary — `UIEventBus`, not `EventBus`.
+6. Global `Events` singleton — last resort. GDQuest, who popularised it, warn you
+   end up searching the whole codebase to trace one signal.
+
+Autoload counts, measured: GodSVG 3, Reia 10, Material Maker 10, Pixelorama 12. The
+escape route is `class_name`'d **stateless static classes** — globally reachable, no
+global state, no autoload slot.
+
+`class_name` cyclic-dependency fear is **stale**: it resolves through the global
+class table, so two classes can mutually type-reference each other and compile.
+Residual cycle errors come from `const X = preload(...)` chains and autoloads.
+
+## Generating resources from code
+
+Our headless CLI generators are a legitimate pattern with live precedent, **but they
+cannot write UIDs** — see the hazards section in `CLAUDE.md`. Well-regarded
+programmatic generators mostly use `EditorScript` + File▸Run
+([Inspiaaa/ThemeGen](https://github.com/Inspiaaa/ThemeGen), 248★) and **nobody
+generates an `AnimationLibrary` from a headless CLI** — every real instance does it
+inside an `EditorImportPlugin` or `GLTFDocumentExtension` at import time, so the
+output is never committed and the UID problem never arises.
+
+The escape hatch, if UIDs start hurting: run the **headless editor**
+(`godot --editor --headless res://Scene.tscn` with a `@tool` root), which restores
+`EditorFileSystem` — UIDs, rescan, real rendering servers — and stays one CI-able
+command.
+
+Worth stealing regardless: an owner recursion that stops at instanced-scene
+boundaries, which is our `.glb` gotcha generalised.
+
+```gdscript
+func set_owner_on_new_nodes(node: Node, scene_owner: Node) -> void:
+	for child in node.get_children():
+		child.owner = scene_owner
+		if child.scene_file_path.is_empty():
+			set_owner_on_new_nodes(child, scene_owner)
+```

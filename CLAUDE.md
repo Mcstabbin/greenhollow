@@ -204,6 +204,36 @@ A repo whose last commit is day one is the failure signature.
   way to notice is a node-count round-trip after packing.
 - The Asset Library is being superseded by [store.godotengine.org](https://store.godotengine.org/).
   Check both when following Rule 1.
+- **The depth and normal-roughness buffers are captured *before* the transparent
+  pass, so a transparent material can never be outlined by `outline_post`.** Not at
+  any setting. This is the single most consequential fact about our art direction:
+  in a world where everything carries a black contour, an un-contoured shape reads
+  as a *rendering artefact*. Effects that must read (trails, rings, slashes) belong
+  in the opaque pipeline — `ALPHA_HASH`, or `ALPHA_SCISSOR` with a threshold.
+  Corollary: **never alpha-blend or `visible`-toggle the player** for i-frames or
+  flashes; it drops the character's own outline on every off phase. Toggle a tint.
+- Our outline's `normal_edge` term has **no distance attenuation** while
+  `depth_edge` does (`dd / max(dc, 0.001)`). Normal differences are
+  distance-invariant, so distant foliage emits full-strength crease lines — and
+  since the canopies sway, that hatch shimmers. Also `render_mode` includes
+  `fog_disabled`, so raising fog washes out the trees while leaving their outlines
+  pure black. Depth-attenuating the outline is the mandatory partner to any fog
+  change.
+- `hint_normal_roughness_texture` is **Forward+ only** and not planned for Mobile.
+  The outline pass pins the renderer.
+- **Never use `Engine.time_scale` for hitstop.** `AudioStreamPlayer` ignores it
+  entirely and physics stops being deterministic. Scale the participating
+  `AnimationTree`s instead.
+- `material_overlay` and `next_pass` draw the mesh a second time *and* introduce a
+  shader variant never drawn before, which compiles on first use — a stutter
+  exactly on the damage frame. Prefer `instance uniform` + `set_instance_shader_parameter()`
+  (needs a `ShaderMaterial`; a plain `uniform` would flash every instance at once).
+- `Decal` supports **no custom shader**, is Forward+/Mobile only, and applies
+  through the lighting path — so an `unshaded` surface likely receives nothing. Use
+  a `Sprite3D` or a flat quad with alpha scissor, as `toon_shadow_blob.tres`
+  already does.
+- `.tscn` and `.tres` files **do** accept `;` comments, which is the only way to
+  leave a note on hand-authored scene wiring.
 
 ## Known hazards — read before touching these
 

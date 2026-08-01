@@ -1,0 +1,262 @@
+{
+  "_comment": "Forced-choice legibility set (CRITIC.md Mode 4). SIX MATCHED PAIRS: each of six positions gives exactly one idle and one action frame from the identical gameplay camera, so position carries zero information about which class a frame belongs to. A first attempt used one position for all twelve and produced six near-identical idle frames, which a critic can spot and use to infer the control without looking at the character. Every shot uses capture_when (advance until the player really is in that state) rather than capture_at (hand-tuned frame arithmetic, which silently broke when an 8-frame settle was added upstream), and every shot also declares expect_* so capture.gd fails the run on any mismatch. An earlier version of this set silently captured four 'idle' frames of a walking character.",
+  "shots": [
+    {
+      "_note": "CONTROL for this position. Waits until the player genuinely IS idle rather than assuming a frame count, so a shot that inherited a fall or a slide self-corrects instead of quietly captioning a walk cycle as idle.",
+      "name": "pair1_idle",
+      "player_position": [
+        16,
+        0.3,
+        -2
+      ],
+      "camera_yaw_deg": 0,
+      "warmup_frames": 60,
+      "capture_when": {
+        "state": "Idle",
+        "clip": "idle"
+      },
+      "capture_offset": 4,
+      "expect_state": "Idle",
+      "expect_clip": "idle"
+    },
+    {
+      "_note": "slash_a wind-up: blade cocked above the shoulder.",
+      "name": "pair1_action",
+      "player_position": [
+        16,
+        0.3,
+        -2
+      ],
+      "camera_yaw_deg": 0,
+      "warmup_frames": 50,
+      "inputs": [
+        {
+          "action": "attack",
+          "press_at": 1,
+          "release_at": 3
+        }
+      ],
+      "capture_when": {
+        "clip": "slash_a"
+      },
+      "expect_state": "Attack",
+      "expect_clip": "slash_a"
+    },
+    {
+      "_note": "CONTROL for this position. Waits until the player genuinely IS idle rather than assuming a frame count, so a shot that inherited a fall or a slide self-corrects instead of quietly captioning a walk cycle as idle.",
+      "name": "pair2_idle",
+      "player_position": [
+        2.5,
+        0.3,
+        12.5
+      ],
+      "camera_yaw_deg": 0,
+      "warmup_frames": 60,
+      "capture_when": {
+        "state": "Idle",
+        "clip": "idle"
+      },
+      "capture_offset": 4,
+      "expect_state": "Idle",
+      "expect_clip": "idle"
+    },
+    {
+      "_note": "slash_a with the hitbox live.",
+      "name": "pair2_action",
+      "player_position": [
+        2.5,
+        0.3,
+        12.5
+      ],
+      "camera_yaw_deg": 0,
+      "warmup_frames": 50,
+      "inputs": [
+        {
+          "action": "attack",
+          "press_at": 1,
+          "release_at": 3
+        }
+      ],
+      "capture_when": {
+        "clip": "slash_a",
+        "live": true
+      },
+      "expect_state": "Attack",
+      "expect_clip": "slash_a",
+      "expect_live": true
+    },
+    {
+      "_note": "CONTROL for this position. Waits until the player genuinely IS idle rather than assuming a frame count, so a shot that inherited a fall or a slide self-corrects instead of quietly captioning a walk cycle as idle.",
+      "name": "pair3_idle",
+      "player_position": [
+        0,
+        0.3,
+        6
+      ],
+      "camera_yaw_deg": 0,
+      "warmup_frames": 60,
+      "capture_when": {
+        "state": "Idle",
+        "clip": "idle"
+      },
+      "capture_offset": 4,
+      "expect_state": "Idle",
+      "expect_clip": "idle"
+    },
+    {
+      "_note": "slash_a late in the live window - flagged marginal by its own builder, and the frame this test exists to settle.",
+      "name": "pair3_action",
+      "player_position": [
+        0,
+        0.3,
+        6
+      ],
+      "camera_yaw_deg": 0,
+      "warmup_frames": 50,
+      "inputs": [
+        {
+          "action": "attack",
+          "press_at": 1,
+          "release_at": 3
+        }
+      ],
+      "capture_when": {
+        "clip": "slash_a",
+        "live": true
+      },
+      "capture_offset": 4,
+      "expect_state": "Attack",
+      "expect_clip": "slash_a"
+    },
+    {
+      "_note": "CONTROL for this position. Waits until the player genuinely IS idle rather than assuming a frame count, so a shot that inherited a fall or a slide self-corrects instead of quietly captioning a walk cycle as idle.",
+      "name": "pair4_idle",
+      "player_position": [
+        8,
+        0.3,
+        8
+      ],
+      "camera_yaw_deg": 0,
+      "warmup_frames": 60,
+      "capture_when": {
+        "state": "Idle",
+        "clip": "idle"
+      },
+      "capture_offset": 4,
+      "expect_state": "Idle",
+      "expect_clip": "idle"
+    },
+    {
+      "_note": "slash_b live, the chained follow-up. Opposite screen direction to slash_a.",
+      "name": "pair4_action",
+      "player_position": [
+        8,
+        0.3,
+        8
+      ],
+      "camera_yaw_deg": 0,
+      "warmup_frames": 50,
+      "inputs": [
+        {
+          "action": "attack",
+          "press_at": 1,
+          "release_at": 3
+        },
+        {
+          "action": "attack",
+          "press_at": 8,
+          "release_at": 10
+        }
+      ],
+      "capture_when": {
+        "clip": "slash_b",
+        "live": true
+      },
+      "expect_state": "Attack",
+      "expect_clip": "slash_b"
+    },
+    {
+      "_note": "CONTROL for this position. Waits until the player genuinely IS idle rather than assuming a frame count, so a shot that inherited a fall or a slide self-corrects instead of quietly captioning a walk cycle as idle.",
+      "name": "pair5_idle",
+      "player_position": [
+        16,
+        0.3,
+        6
+      ],
+      "camera_yaw_deg": 0,
+      "warmup_frames": 60,
+      "capture_when": {
+        "state": "Idle",
+        "clip": "idle"
+      },
+      "capture_offset": 4,
+      "expect_state": "Idle",
+      "expect_clip": "idle"
+    },
+    {
+      "_note": "Charge held past the 1067 ms threshold. Expected WEAKEST: charging happens inside Idle, so the pose is the idle pose and only the blade colour differs. A forced-choice test should expose that.",
+      "name": "pair5_action",
+      "player_position": [
+        16,
+        0.3,
+        6
+      ],
+      "camera_yaw_deg": 0,
+      "warmup_frames": 50,
+      "inputs": [
+        {
+          "action": "attack",
+          "press_at": 1
+        }
+      ],
+      "capture_when": {
+        "charged": true
+      },
+      "expect_state": "Idle",
+      "expect_clip": "idle"
+    },
+    {
+      "_note": "CONTROL for this position. Waits until the player genuinely IS idle rather than assuming a frame count, so a shot that inherited a fall or a slide self-corrects instead of quietly captioning a walk cycle as idle.",
+      "name": "pair6_idle",
+      "player_position": [
+        6,
+        0.3,
+        -6
+      ],
+      "camera_yaw_deg": 0,
+      "warmup_frames": 60,
+      "capture_when": {
+        "state": "Idle",
+        "clip": "idle"
+      },
+      "capture_offset": 4,
+      "expect_state": "Idle",
+      "expect_clip": "idle"
+    },
+    {
+      "_note": "Spin, ring at radius.",
+      "name": "pair6_action",
+      "player_position": [
+        6,
+        0.3,
+        -6
+      ],
+      "camera_yaw_deg": 0,
+      "warmup_frames": 50,
+      "inputs": [
+        {
+          "action": "attack",
+          "press_at": 1,
+          "release_at": 66
+        }
+      ],
+      "capture_when": {
+        "clip": "spin_attack",
+        "live": true
+      },
+      "capture_offset": 6,
+      "expect_state": "Attack",
+      "expect_clip": "spin_attack"
+    }
+  ]
+}
