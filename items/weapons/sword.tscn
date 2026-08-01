@@ -1,0 +1,68 @@
+[gd_scene format=3]
+
+[ext_resource type="Material" path="res://art/materials/toon_wood.tres" id="1_kx2q5"]
+[ext_resource type="Material" path="res://art/materials/toon_gold.tres" id="2_o63xl"]
+[ext_resource type="Script" path="res://actors/player/sword_hit_box.gd" id="3_i6wsw"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_ce132"]
+size = Vector3(0.06, 0.14, 0.06)
+
+[sub_resource type="BoxMesh" id="BoxMesh_q6sqt"]
+size = Vector3(0.28, 0.05, 0.08)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_sjag2"]
+resource_name = "toon_steel"
+diffuse_mode = 2
+specular_mode = 2
+albedo_color = Color(0.42, 0.5, 0.66, 1)
+roughness = 0.6
+
+[sub_resource type="BoxMesh" id="BoxMesh_0l57d"]
+size = Vector3(0.135, 0.42, 0.045)
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_hdgeo"]
+radius = 0.13
+height = 0.42
+
+[node name="Sword" type="Node3D" unique_id=1100888496]
+
+[node name="Handle" type="MeshInstance3D" parent="." unique_id=862380968]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.04, 0)
+material_override = ExtResource("1_kx2q5")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_ce132")
+
+[node name="Guard" type="MeshInstance3D" parent="." unique_id=459773734]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.125, 0)
+material_override = ExtResource("2_o63xl")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_q6sqt")
+
+[node name="Blade" type="MeshInstance3D" parent="." unique_id=555859704]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.35, 0)
+material_override = SubResource("StandardMaterial3D_sjag2")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_0l57d")
+
+[node name="HitBox" type="Area3D" parent="." unique_id=1634850831]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.35, 0)
+collision_layer = 16
+collision_mask = 32
+monitoring = false
+script = ExtResource("3_i6wsw")
+
+[node name="Shape" type="CollisionShape3D" parent="HitBox" unique_id=1832649243]
+shape = SubResource("CapsuleShape3D_hdgeo")
+
+[node name="BladeBase" type="Node3D" parent="." unique_id=1909674863]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.14, 0)
+
+[node name="BladeTip" type="Node3D" parent="." unique_id=630878986]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
+
+[node name="ChargeGlow" type="OmniLight3D" parent="." unique_id=722387538]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.36, 0)
+visible = false
+light_color = Color(0.5, 0.96, 1, 1)
+light_energy = 4.0
+omni_range = 1.4

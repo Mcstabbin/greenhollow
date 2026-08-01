@@ -1,0 +1,84 @@
+[gd_scene format=3]
+
+[ext_resource type="Material" path="res://art/materials/toon_wood.tres" id="1_njxyo"]
+[ext_resource type="Material" path="res://art/materials/toon_gold.tres" id="2_pkob5"]
+[ext_resource type="Script" path="res://actors/player/sword_hit_box.gd" id="3_025gd"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_dmxft"]
+size = Vector3(0.055, 0.46, 0.055)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_2oxfu"]
+resource_name = "toon_steel"
+diffuse_mode = 2
+specular_mode = 2
+albedo_color = Color(0.42, 0.5, 0.66, 1)
+roughness = 0.6
+
+[sub_resource type="BoxMesh" id="BoxMesh_sscjf"]
+size = Vector3(0.09, 0.17, 0.085)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_2h7xt"]
+resource_name = "toon_steel"
+diffuse_mode = 2
+specular_mode = 2
+albedo_color = Color(0.42, 0.5, 0.66, 1)
+roughness = 0.6
+
+[sub_resource type="BoxMesh" id="BoxMesh_50eo4"]
+size = Vector3(0.1, 0.27, 0.05)
+
+[sub_resource type="BoxMesh" id="BoxMesh_6m06y"]
+size = Vector3(0.075, 0.05, 0.075)
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_2a246"]
+radius = 0.17
+height = 0.35
+
+[node name="Axe" type="Node3D" unique_id=266168498]
+
+[node name="Handle" type="MeshInstance3D" parent="." unique_id=1314397140]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 0)
+material_override = ExtResource("1_njxyo")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_dmxft")
+
+[node name="HeadCheek" type="MeshInstance3D" parent="." unique_id=1857745489]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.05, 0.42, 0)
+material_override = SubResource("StandardMaterial3D_2oxfu")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_sscjf")
+
+[node name="HeadEdge" type="MeshInstance3D" parent="." unique_id=14253163]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.14, 0.42, 0)
+material_override = SubResource("StandardMaterial3D_2h7xt")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_50eo4")
+
+[node name="Butt" type="MeshInstance3D" parent="." unique_id=901066399]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.47, 0)
+material_override = ExtResource("2_pkob5")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_6m06y")
+
+[node name="HitBox" type="Area3D" parent="." unique_id=1379406103]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.1, 0.42, 0)
+collision_layer = 16
+collision_mask = 32
+monitoring = false
+script = ExtResource("3_025gd")
+
+[node name="Shape" type="CollisionShape3D" parent="HitBox" unique_id=857680182]
+shape = SubResource("CapsuleShape3D_2a246")
+
+[node name="BladeBase" type="Node3D" parent="." unique_id=817653333]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.3, 0)
+
+[node name="BladeTip" type="Node3D" parent="." unique_id=1756346548]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.55, 0)
+
+[node name="ChargeGlow" type="OmniLight3D" parent="." unique_id=2066849839]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.1, 0.42, 0)
+visible = false
+light_color = Color(0.5, 0.96, 1, 1)
+light_energy = 4.0
+omni_range = 1.4
