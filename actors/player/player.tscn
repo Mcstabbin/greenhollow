@@ -108,10 +108,17 @@ disable_receive_shadows = true
 
 ; Width against age along the ribbon: 0 is the tail, 1 the newest sample at the
 ; blade. Without a taper the ribbon is a parallelogram; with one it is a crescent.
-; The tail keeps 26% of the width rather than going to zero, because a true point
-; is one pixel wide and disappears before the outline can contour it.
+;
+; The tail keeps 40% of the width rather than going to zero, and the number was
+; measured rather than chosen. At 26% the crescent was prettier but slash_b's first
+; live frame — the swing that crosses in FRONT of the chest, i.e. the one volume the
+; camera has to look through the character to reach — had nothing left outside the
+; torso but a thin dark sliver at the shoulder. A tapering ribbon still reads as a
+; swing; a ribbon with no area does not read at all. 40% is the floor that keeps the
+; early frames legible, and a true point would be one pixel wide and vanish before
+; the outline pass could contour it anyway.
 [sub_resource type="Curve" id="Curve_trail_width"]
-_data = [Vector2(0, 0.26), 0.0, 0.0, 0, 0, Vector2(0.45, 0.78), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0]
+_data = [Vector2(0, 0.4), 0.0, 0.0, 0, 0, Vector2(0.45, 0.82), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0]
 point_count = 3
 
 ; `rings` is the subdivision of the MAIN circle and `ring_segments` the tube's
@@ -206,13 +213,25 @@ xfade_time = 0.02
 switch_mode = 0
 advance_mode = 1
 
+; 0.02, down from 0.05, and this is a READABILITY change with no timing cost. The
+; frame the AnimationTree first reports as `slash_a` is the frame a wind-up gets
+; judged on, and at that instant the new clip's blend weight is roughly one physics
+; step divided by the xfade: 33% at 0.05 s, 83% at 0.02 s. At 33% the anticipation
+; pose the generator now keys on frame 0 was mostly blended away, which is precisely
+; the "a forearm raised one body-width ... is not enough" complaint. Verified with the
+; combat probe: every measured number — wind-up 133 ms, live 100 ms, commitment
+; 417 ms, spin 167/300, and all four damage counts — is bit-identical either side of
+; this change, because method tracks fire on the clip's own time and blend weight has
+; no say in it.
 [sub_resource type="AnimationNodeStateMachineTransition" id="trans_attack_in"]
-xfade_time = 0.05
+xfade_time = 0.02
 switch_mode = 0
 advance_mode = 1
 
+; Same reasoning for the chained follow-up: at 0.06 s the second swing's wind-up was
+; 28% expressed on the frame it is judged.
 [sub_resource type="AnimationNodeStateMachineTransition" id="trans_combo"]
-xfade_time = 0.06
+xfade_time = 0.03
 switch_mode = 0
 advance_mode = 1
 

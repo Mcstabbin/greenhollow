@@ -59,13 +59,13 @@ extends MeshInstance3D
 @export var blade_tip: Node3D
 ## How many ticks of blade travel the ribbon holds. This is the *smear length*,
 ## and it is the number the 10-18 frame band applies to: a point inserted now is
-## dropped this many ticks later. 11 at 60 Hz is 183 ms.
+## dropped this many ticks later. 12 at 60 Hz is 200 ms, mid-band.
 ##
 ## It is a count of TICKS, not of points, because insertion is distance-gated —
 ## a fast part of the swing inserts several points in one tick and a slow part
 ## inserts none, so counting points would make the ribbon's length depend on how
 ## hard the blade happened to be moving.
-@export var history_ticks: float = 11.0
+@export var history_ticks: float = 12.0
 ## How far past each end of the blade the ribbon reaches, as a fraction of blade
 ## length. 0.0 is base-to-tip; 0.6 makes the band 2.2 m across, which at 640 px
 ## is the difference between a band and a scratch. Past about 0.8 the spin's two
@@ -101,7 +101,7 @@ extends MeshInstance3D
 ## into the arc. A full-width band on frame one would read as a swing that had
 ## already happened.
 @export var bloom_ticks: float = 5.0
-@export_range(0.0, 1.0) var bloom_from: float = 0.34
+@export_range(0.0, 1.0) var bloom_from: float = 0.70
 ## The three bands. `tint_edge` is the load-bearing one: it is what lets the shape
 ## survive against the 0.91-value sky horizon and the white torso.
 @export var tint_core: Color = Color(0.99, 0.95, 0.84, 1.0)
@@ -128,8 +128,13 @@ const BAND_ROLES: Array[int] = [ROLE_EDGE, ROLE_MID, ROLE_CORE, ROLE_MID, ROLE_E
 ## holds along the length, darkest at the tail.
 const HOLDS := 3
 ## How much of the band colour survives in the oldest hold. The rest is tint_edge,
-## so the tail is dark rather than merely faint.
-const TAIL_MIX := 0.3
+## so the tail is dark rather than merely faint. 0.3 was tried first and made the
+## older two thirds a muddy near-brown: it read as a wooden prop rather than as a
+## smear, and it cost the frames where the only part of the ribbon outside the torso
+## IS the tail — slash_b's first live frame, and slash_a's recovery. 0.5 keeps the
+## dark-to-hot ramp, and the near-black rims are a separate band role that this does
+## not touch.
+const TAIL_MIX := 0.5
 
 var _base: PackedVector3Array = []
 var _tip: PackedVector3Array = []

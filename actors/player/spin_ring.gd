@@ -28,9 +28,11 @@ extends MeshInstance3D
 ## threat's footprint, not a tracing of the sword.
 @export var radius_from: float = 0.5
 @export var radius_to: float = 2.9
-## Seconds the flash lasts. Matched to the spin's 300 ms live window, not to the
-## whole clip, so it is gone before the recovery pose.
-@export var duration: float = 0.3
+## Seconds the flash lasts. Matched to the spin's 300 ms live window plus the two
+## frames of latency between the key and the hitbox, not to the whole clip, so it is
+## gone before the recovery pose. Shortening this to 0.30 put the ring *just* outside
+## the frame the capture set judges the spin on, which is how the number got checked.
+@export var duration: float = 0.34
 ## How flat the ring sits. The mesh is a torus; squashing it in Y turns the tube
 ## into a band lying on the ground.
 @export var flatten: float = 0.35
