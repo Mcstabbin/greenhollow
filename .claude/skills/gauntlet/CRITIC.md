@@ -81,6 +81,54 @@ JSON output and the bands from [REFERENCE.md](REFERENCE.md), and nothing else.
 > Verdict: pass or fail. A measurement that is inside its band but wrong against
 > its neighbours is a fail.
 
+## Mode 4 — forced-choice legibility test
+
+Use this when the failing axis is **"could a player tell this frame apart from
+doing nothing?"** Modes 1 and 2 return an opinion; this returns a score that can
+be wrong. Prefer it for any piece whose whole job is to be *visible*.
+
+The trick is to make the critic classify rather than appraise. Build a set from
+the **identical camera**:
+
+- N frames mid-action (mid-swing, mid-block, mid-hurt)
+- N frames of the control state (idle, same spot, same camera, same time of day)
+- shuffle, rename to `shot_01.png` … `shot_2N.png`, keep the key yourself
+
+Then:
+
+> Here are 2N frames from one third-person action game, all from the same camera
+> and the same spot. In each one the character is either **performing an action**
+> or **standing idle**. Exactly half are each.
+>
+> For every frame, answer `ACTION` or `IDLE`, plus a confidence 1–5 and the one
+> visual cue you used. If you are guessing, say `IDLE` and confidence 1 — do not
+> pad the answer to look decisive.
+>
+> Then: which cue was most reliable across the set, and were there frames where
+> you found no cue at all?
+
+Score it yourself against the key:
+
+| Result | Meaning |
+|---|---|
+| Near 100%, confident, names a consistent cue | The action is legible. Pass. |
+| Around chance (50%) | **The action is invisible.** Not a matter of taste. Fail. |
+| High accuracy but confidence 1–2 | Legible only on close inspection — fails for something a player sees for 100 ms. |
+| Accurate on some actions, chance on others | Exactly the useful result: it names *which* action is invisible. |
+
+Two ways this goes wrong, both worth guarding:
+
+- **A tell that is not the action.** If the critic scores well off the HUD, a
+  particle that outlives the swing, or the character having drifted a metre, it
+  has learned the capture harness, not the animation. That is why the brief asks
+  which cue it used — check that the cue is the thing you built.
+- **Unbalanced sets.** Telling it the split is exactly half is deliberate; without
+  it a critic that suspects a trick answers ACTION to everything and scores 50%
+  while looking confident.
+
+Run it *after* a Mode 1 pass, not instead. Mode 1 says what to fix; Mode 4 says
+whether the fix worked.
+
 ## Mode 3 — integration pass, wave end
 
 One critic, fresh context, given every capture from the wave plus the full probe
