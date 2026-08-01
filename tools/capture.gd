@@ -294,10 +294,17 @@ func _collect_effects() -> void:
 			continue
 		if script.get_global_name() in [&"SwordTrail", &"SpinRing", &"ChargeRing"]:
 			_effect_nodes.append(mesh)
-	var glow := _player.get_node_or_null(
-		"Rig/Character/character/root/torso/arm-right/SwordGrip/ChargeGlow") as Node3D
-	if glow != null:
-		_effect_nodes.append(glow)
+	# Found by type, not by path. The glow used to live at a fixed path under SwordGrip;
+	# it moved inside the equipped weapon scene when weapons became items, and the stale
+	# path failed SILENTLY — `get_node_or_null` returned null, the count printed 2 instead
+	# of 3, and every `poseonly` frame kept its charge glow. A hardcoded path into another
+	# node's internals is exactly the coupling that rots; an OmniLight under the player is
+	# an effect whatever it is parented to.
+	for node in _player.find_children("*", "OmniLight3D", true, false):
+		_effect_nodes.append(node as Node3D)
+	if _effect_nodes.is_empty():
+		printerr("capture: found NO effect nodes — hide_effects shots will be identical"
+			+ " to their effects-on twins, which silently invalidates a pose-only test")
 	print("capture: %d effect node(s) available to hide_effects shots" % _effect_nodes.size())
 
 
