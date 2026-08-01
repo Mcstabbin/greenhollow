@@ -1,9 +1,23 @@
-[gd_scene load_steps=15 format=3]
+[gd_scene load_steps=46 format=3]
 
 [ext_resource type="Script" path="res://actors/player/player.gd" id="1_player"]
 [ext_resource type="PackedScene" path="res://art/models/character.glb" id="2_character"]
 [ext_resource type="Material" path="res://art/materials/toon_shadow_blob.tres" id="3_blob"]
 [ext_resource type="Material" path="res://art/materials/outline_post.tres" id="4_outline"]
+[ext_resource type="AnimationLibrary" path="res://actors/player/player_anims.tres" id="5_anims"]
+[ext_resource type="Material" path="res://art/materials/toon_wood.tres" id="6_wood"]
+[ext_resource type="Material" path="res://art/materials/toon_gold.tres" id="7_gold"]
+[ext_resource type="Script" path="res://actors/player/sword_hit_box.gd" id="8_swordhit"]
+[ext_resource type="Script" path="res://actors/player/player_state_machine.gd" id="9_machine"]
+[ext_resource type="Script" path="res://actors/player/player_idle_state.gd" id="10_idle"]
+[ext_resource type="Script" path="res://actors/player/player_move_state.gd" id="11_move"]
+[ext_resource type="Script" path="res://actors/player/player_air_state.gd" id="12_air"]
+[ext_resource type="Script" path="res://actors/player/player_attack_state.gd" id="13_attack"]
+[ext_resource type="AudioStream" path="res://actors/player/audio/swing.tres" id="14_swing"]
+[ext_resource type="AudioStream" path="res://actors/player/audio/swing_heavy.tres" id="15_heavy"]
+[ext_resource type="AudioStream" path="res://actors/player/audio/charge_ready.tres" id="16_charge"]
+[ext_resource type="AudioStream" path="res://actors/player/audio/hit.tres" id="17_hit"]
+[ext_resource type="Script" path="res://actors/player/sword_trail.gd" id="18_trail"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.4
@@ -21,6 +35,45 @@ size = Vector2(2, 2)
 [sub_resource type="SphereShape3D" id="SphereShape3D_interact"]
 radius = 2.8
 
+[sub_resource type="BoxMesh" id="BoxMesh_handle"]
+size = Vector3(0.05, 0.13, 0.05)
+
+[sub_resource type="BoxMesh" id="BoxMesh_guard"]
+size = Vector3(0.22, 0.04, 0.07)
+
+[sub_resource type="BoxMesh" id="BoxMesh_blade"]
+size = Vector3(0.1, 0.3, 0.035)
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_blade"]
+radius = 0.075
+height = 0.34
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_blade"]
+resource_name = "toon_steel"
+albedo_color = Color(0.79, 0.84, 0.9, 1)
+roughness = 0.6
+diffuse_mode = 3
+specular_mode = 1
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_blade_live"]
+resource_name = "blade_live"
+shading_mode = 0
+albedo_color = Color(1, 1, 0.92, 1)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_blade_charged"]
+resource_name = "blade_charged"
+shading_mode = 0
+albedo_color = Color(0.6, 0.96, 1, 1)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_trail"]
+resource_name = "sword_trail"
+transparency = 1
+shading_mode = 0
+vertex_color_use_as_albedo = true
+albedo_color = Color(1, 1, 1, 1)
+cull_mode = 2
+disable_receive_shadows = true
+
 [sub_resource type="AnimationNodeAnimation" id="anim_idle"]
 animation = &"idle"
 
@@ -29,6 +82,15 @@ animation = &"walk"
 
 [sub_resource type="AnimationNodeAnimation" id="anim_jump"]
 animation = &"jump"
+
+[sub_resource type="AnimationNodeAnimation" id="anim_slash_a"]
+animation = &"slash_a"
+
+[sub_resource type="AnimationNodeAnimation" id="anim_slash_b"]
+animation = &"slash_b"
+
+[sub_resource type="AnimationNodeAnimation" id="anim_spin"]
+animation = &"spin_attack"
 
 [sub_resource type="AnimationNodeStateMachineTransition" id="trans_loco"]
 xfade_time = 0.12
@@ -40,15 +102,36 @@ xfade_time = 0.08
 switch_mode = 0
 advance_mode = 1
 
+[sub_resource type="AnimationNodeStateMachineTransition" id="trans_attack_in"]
+xfade_time = 0.05
+switch_mode = 0
+advance_mode = 1
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="trans_combo"]
+xfade_time = 0.06
+switch_mode = 0
+advance_mode = 1
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="trans_attack_out"]
+xfade_time = 0.12
+switch_mode = 0
+advance_mode = 1
+
 [sub_resource type="AnimationNodeStateMachine" id="StateMachine_loco"]
 states/idle/node = SubResource("anim_idle")
 states/idle/position = Vector2(340, 100)
 states/jump/node = SubResource("anim_jump")
 states/jump/position = Vector2(480, 220)
+states/slash_a/node = SubResource("anim_slash_a")
+states/slash_a/position = Vector2(340, -80)
+states/slash_b/node = SubResource("anim_slash_b")
+states/slash_b/position = Vector2(620, -80)
+states/spin_attack/node = SubResource("anim_spin")
+states/spin_attack/position = Vector2(480, -200)
 states/walk/node = SubResource("anim_walk")
 states/walk/position = Vector2(620, 100)
-transitions = ["Start", "idle", SubResource("trans_loco"), "idle", "walk", SubResource("trans_loco"), "walk", "idle", SubResource("trans_loco"), "idle", "jump", SubResource("trans_jump"), "walk", "jump", SubResource("trans_jump"), "jump", "idle", SubResource("trans_jump"), "jump", "walk", SubResource("trans_jump")]
-graph_offset = Vector2(180, 20)
+transitions = ["Start", "idle", SubResource("trans_loco"), "idle", "walk", SubResource("trans_loco"), "walk", "idle", SubResource("trans_loco"), "idle", "jump", SubResource("trans_jump"), "walk", "jump", SubResource("trans_jump"), "jump", "idle", SubResource("trans_jump"), "jump", "walk", SubResource("trans_jump"), "idle", "slash_a", SubResource("trans_attack_in"), "idle", "slash_b", SubResource("trans_attack_in"), "idle", "spin_attack", SubResource("trans_attack_in"), "walk", "slash_a", SubResource("trans_attack_in"), "walk", "slash_b", SubResource("trans_attack_in"), "walk", "spin_attack", SubResource("trans_attack_in"), "slash_a", "slash_b", SubResource("trans_combo"), "slash_b", "slash_a", SubResource("trans_combo"), "slash_a", "spin_attack", SubResource("trans_combo"), "slash_b", "spin_attack", SubResource("trans_combo"), "spin_attack", "slash_a", SubResource("trans_combo"), "slash_a", "idle", SubResource("trans_attack_out"), "slash_a", "walk", SubResource("trans_attack_out"), "slash_a", "jump", SubResource("trans_attack_out"), "slash_b", "idle", SubResource("trans_attack_out"), "slash_b", "walk", SubResource("trans_attack_out"), "slash_b", "jump", SubResource("trans_attack_out"), "spin_attack", "idle", SubResource("trans_attack_out"), "spin_attack", "walk", SubResource("trans_attack_out"), "spin_attack", "jump", SubResource("trans_attack_out")]
+graph_offset = Vector2(180, -240)
 
 [sub_resource type="AnimationNodeTimeScale" id="TimeScale_loco"]
 
@@ -64,6 +147,13 @@ node_connections = [&"output", 0, &"TimeScale", &"TimeScale", 0, &"StateMachine"
 collision_layer = 2
 collision_mask = 1
 script = ExtResource("1_player")
+blade_material = SubResource("StandardMaterial3D_blade")
+blade_live_material = SubResource("StandardMaterial3D_blade_live")
+blade_charged_material = SubResource("StandardMaterial3D_blade_charged")
+sfx_swing = ExtResource("14_swing")
+sfx_swing_heavy = ExtResource("15_heavy")
+sfx_charge_ready = ExtResource("16_charge")
+sfx_hit = ExtResource("17_hit")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
@@ -82,16 +172,133 @@ shape = SubResource("SphereShape3D_interact")
 [node name="Character" parent="Rig" instance=ExtResource("2_character")]
 transform = Transform3D(2, 0, 0, 0, 2, 0, 0, 0, 2, 0, 0, 0)
 
+; The sword hangs off the right arm, which is a plain Node3D — character.glb has
+; no Skeleton3D, so there is no bone to attach to and no BoneAttachment3D needed.
+; Everything below is in Character-local units; Character is scaled x2, so the
+; blade's 0.28 reads as 0.56 m and the whole sword as ~0.84 m.
+[node name="SwordGrip" type="Node3D" parent="Rig/Character/character/root/torso/arm-right"]
+position = Vector3(-0.26, 0, 0.02)
+rotation = Vector3(0, 0.436332, 0.244346)
+
+[node name="Handle" type="MeshInstance3D" parent="Rig/Character/character/root/torso/arm-right/SwordGrip"]
+position = Vector3(0, 0.04, 0)
+cast_shadow = 0
+mesh = SubResource("BoxMesh_handle")
+surface_material_override/0 = ExtResource("6_wood")
+
+[node name="Guard" type="MeshInstance3D" parent="Rig/Character/character/root/torso/arm-right/SwordGrip"]
+position = Vector3(0, 0.12, 0)
+cast_shadow = 0
+mesh = SubResource("BoxMesh_guard")
+surface_material_override/0 = ExtResource("7_gold")
+
+[node name="Blade" type="MeshInstance3D" parent="Rig/Character/character/root/torso/arm-right/SwordGrip"]
+position = Vector3(0, 0.28, 0)
+material_override = SubResource("StandardMaterial3D_blade")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_blade")
+
+; Layer 5 player_hitbox, mask 6 enemy_hurtbox. Armed only by the clips'
+; _anim_hitbox_on keyframe; monitoring is off at rest.
+[node name="HitBox" type="Area3D" parent="Rig/Character/character/root/torso/arm-right/SwordGrip"]
+position = Vector3(0, 0.26, 0)
+collision_layer = 16
+collision_mask = 32
+monitoring = false
+script = ExtResource("8_swordhit")
+amount = 1
+
+[node name="Shape" type="CollisionShape3D" parent="Rig/Character/character/root/torso/arm-right/SwordGrip/HitBox"]
+shape = SubResource("CapsuleShape3D_blade")
+
+[node name="BladeBase" type="Node3D" parent="Rig/Character/character/root/torso/arm-right/SwordGrip"]
+position = Vector3(0, 0.1, 0)
+
+[node name="BladeTip" type="Node3D" parent="Rig/Character/character/root/torso/arm-right/SwordGrip"]
+position = Vector3(0, 0.5, 0)
+
+[node name="ChargeGlow" type="OmniLight3D" parent="Rig/Character/character/root/torso/arm-right/SwordGrip"]
+position = Vector3(0, 0.3, 0)
+visible = false
+light_color = Color(0.6, 0.95, 1, 1)
+light_energy = 2.2
+shadow_enabled = false
+omni_range = 0.9
+
 [node name="GroundMarker" type="MeshInstance3D" parent="Rig"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.03, 0)
 cast_shadow = 0
 mesh = SubResource("SphereMesh_shadow")
 surface_material_override/0 = ExtResource("3_blob")
 
+; Ours rather than the .glb's, with root_node on the Player: player_anims.tres
+; keys Rig/Character/... paths, and its attack clips carry method tracks that
+; call straight back onto this node.
+[node name="AnimPlayer" type="AnimationPlayer" parent="."]
+root_node = NodePath("..")
+libraries = {
+&"": ExtResource("5_anims")
+}
+
+; callback_mode_process = PHYSICS and callback_mode_method = IMMEDIATE: the attack
+; windows are method tracks, so they have to land on physics ticks and fire
+; without a deferred hop, or the measured wind-up drifts with framerate.
 [node name="AnimationTree" type="AnimationTree" parent="."]
+root_node = NodePath("..")
 tree_root = SubResource("BlendTree_root")
-anim_player = NodePath("../Rig/Character/AnimationPlayer")
+anim_player = NodePath("../AnimPlayer")
+callback_mode_process = 0
+callback_mode_method = 1
 active = true
+
+; The `node_paths=PackedStringArray(...)` header is load-bearing, and its absence
+; is silent: without it Godot stores the NodePath but never resolves it into a
+; Node, so every transition reference arrives as null and the player simply never
+; leaves Idle. Verified by packing the same wiring in code and reading back what
+; the engine writes.
+[node name="StateMachine" type="Node" parent="." node_paths=PackedStringArray("initial_state")]
+script = ExtResource("9_machine")
+initial_state = NodePath("Idle")
+
+[node name="Idle" type="Node" parent="StateMachine" node_paths=PackedStringArray("attack_state", "move_state", "air_state")]
+script = ExtResource("10_idle")
+attack_state = NodePath("../Attack")
+move_state = NodePath("../Move")
+air_state = NodePath("../Air")
+
+[node name="Move" type="Node" parent="StateMachine" node_paths=PackedStringArray("attack_state", "idle_state", "air_state")]
+script = ExtResource("11_move")
+attack_state = NodePath("../Attack")
+idle_state = NodePath("../Idle")
+air_state = NodePath("../Air")
+
+[node name="Air" type="Node" parent="StateMachine" node_paths=PackedStringArray("idle_state", "move_state")]
+script = ExtResource("12_air")
+idle_state = NodePath("../Idle")
+move_state = NodePath("../Move")
+
+[node name="Attack" type="Node" parent="StateMachine" node_paths=PackedStringArray("idle_state", "move_state", "air_state")]
+script = ExtResource("13_attack")
+idle_state = NodePath("../Idle")
+move_state = NodePath("../Move")
+air_state = NodePath("../Air")
+
+[node name="SfxBlade" type="AudioStreamPlayer3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.1, 0)
+unit_size = 6.0
+max_db = 0.0
+
+[node name="SfxCue" type="AudioStreamPlayer3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.1, 0)
+unit_size = 8.0
+max_db = 0.0
+
+[node name="SwordTrail" type="MeshInstance3D" parent="." node_paths=PackedStringArray("blade_base", "blade_tip")]
+cast_shadow = 0
+material_override = SubResource("StandardMaterial3D_trail")
+script = ExtResource("18_trail")
+blade_base = NodePath("../Rig/Character/character/root/torso/arm-right/SwordGrip/BladeBase")
+blade_tip = NodePath("../Rig/Character/character/root/torso/arm-right/SwordGrip/BladeTip")
 
 [node name="CameraPivot" type="Node3D" parent="."]
 

@@ -49,10 +49,13 @@ func _ready() -> void:
 	match suite:
 		"movement":
 			await _suite_movement()
+		"combat":
+			await _suite_combat()
 		"all":
 			await _suite_movement()
+			await _suite_combat()
 		_:
-			_fail("unknown suite '%s' — known: movement, all" % suite)
+			_fail("unknown suite '%s' — known: movement, combat, all" % suite)
 			return
 
 	_emit(suite)
@@ -127,6 +130,210 @@ func _suite_movement() -> void:
 	_add("jump_airtime_held", _ms(airborne), "ms", "takeoff to landing, jump held")
 
 	_release_all()
+
+
+## Sword attacks: the wind-up, the live window, commitment, the combo/cancel
+## window, the charge threshold, and whether damage actually lands exactly once
+## per target per swing.
+##
+## Everything here reads an observable the game itself uses — `monitoring` on the
+## real hitbox, the swing counter the multi-hit guard keys off, the health of a
+## real hurtbox — rather than a number the player script reports about itself.
+func _suite_combat() -> void:
+	await _reset()
+
+	# Wiring first, so a missing sword reads as a failure rather than as a
+	# plausible-looking zero further down.
+	var hitbox: Node = _player.get_node_or_null(
+		"Rig/Character/character/root/torso/arm-right/SwordGrip/HitBox")
+	_add("sword_hitbox_wired", 1.0 if hitbox != null else -1.0, "bool",
+		"SwordGrip/HitBox exists under the right arm")
+	if hitbox == null:
+		return
+	var layer: int = hitbox.collision_layer
+	var mask: int = hitbox.collision_mask
+	_add("hitbox_layer", float(layer), "bitmask", "expect 16 (layer 5 player_hitbox)")
+	_add("hitbox_mask", float(mask), "bitmask", "expect 32 (layer 6 enemy_hurtbox)")
+
+	# --- Swing one: wind-up and the live window ---------------------------
+	var on_at := -1
+	var off_at := -1
+	var released := false
+	Input.action_press("attack")
+	var elapsed := 0
+	while elapsed < 180:
+		await get_tree().physics_frame
+		elapsed += 1
+		# Let go quickly: holding past charge_time turns this into a spin.
+		if elapsed >= 2 and not released:
+			Input.action_release("attack")
+			released = true
+		var live: bool = _player.is_attack_hitbox_active()
+		if on_at < 0:
+			if live:
+				on_at = elapsed
+		elif off_at < 0 and not live:
+			off_at = elapsed
+			break
+	_add("attack_windup", _ms(on_at), "ms", "attack press to sword hitbox monitoring")
+	_add("attack_hitbox_active", _ms(off_at - on_at if off_at > 0 else -1), "ms",
+		"hitbox monitoring true to false")
+	_add("attack_clip", 1.0 if String(_player.get_anim_state()) == "slash_a" else -1.0,
+		"bool", "first swing plays slash_a")
+
+	# --- Commitment and the combo link ------------------------------------
+	# One press, then a second press well inside the swing. The follow-up is
+	# buffered and can only start when the clip's cancel keyframe opens the
+	# window, so the frame it starts IS the total commitment.
+	await _reset()
+	# +2, not +1: the first press starts a swing of its own, so the counter has to
+	# clear TWO starts before the follow-up has actually been accepted.
+	var want_starts: int = int(_player.get_attack_start_count()) + 2
+	var commit := -1
+	Input.action_press("attack")
+	elapsed = 0
+	while elapsed < 240:
+		await get_tree().physics_frame
+		elapsed += 1
+		if elapsed == 2:
+			Input.action_release("attack")
+		if elapsed == 6:
+			Input.action_press("attack")   # follow-up, pressed early on purpose
+		if elapsed == 8:
+			Input.action_release("attack")
+		if int(_player.get_attack_start_count()) >= want_starts:
+			commit = elapsed
+			break
+	_add("attack_commitment", _ms(commit), "ms",
+		"first press to the second swing being accepted, follow-up pressed at frame 6")
+	# One frame later, because the anim state machine travels after the Player's
+	# physics tick. Checked so the combo is proven to alternate, not repeat.
+	await _frames(2)
+	var second_clip := String(_player.get_anim_state())
+	_add("combo_alternates", 1.0 if second_clip == "slash_b" else -1.0, "bool",
+		"second swing plays slash_b, not slash_a again (got '%s')" % second_clip)
+	_release_all()
+
+	# --- Charge threshold and the spin ------------------------------------
+	await _reset()
+	Input.action_press("attack")
+	var charged_at := await _frames_until(
+		func() -> bool: return bool(_player.is_attack_charged()), 180)
+	_add("charge_threshold", _ms(charged_at), "ms",
+		"attack held to the charged tell firing")
+
+	var starts: int = _player.get_attack_start_count()
+	Input.action_release("attack")
+	on_at = -1
+	off_at = -1
+	var spin_at := -1
+	elapsed = 0
+	while elapsed < 180:
+		await get_tree().physics_frame
+		elapsed += 1
+		if spin_at < 0 and int(_player.get_attack_start_count()) > starts:
+			spin_at = elapsed
+		var live: bool = _player.is_attack_hitbox_active()
+		if on_at < 0:
+			if live:
+				on_at = elapsed
+		elif off_at < 0 and not live:
+			off_at = elapsed
+			break
+	_add("spin_release_to_start", _ms(spin_at), "ms",
+		"charged release to the spin clip starting")
+	_add("spin_windup", _ms(on_at), "ms", "charged release to hitbox monitoring")
+	_add("spin_hitbox_active", _ms(off_at - on_at if off_at > 0 else -1), "ms",
+		"spin hitbox monitoring true to false — deliberately longer than a slash")
+	_add("spin_clip", 1.0 if String(_player.get_anim_state()) == "spin_attack" else -1.0,
+		"bool", "the charged release plays spin_attack")
+	_release_all()
+	await _frames(60)
+
+	# --- Attacking out of a run -------------------------------------------
+	# The Move state has its own wiring to Attack, and a null export there would
+	# fail silently in exactly the situation a player is most likely to be in.
+	await _reset()
+	Input.action_press("move_forward")
+	await _frames(20)
+	var running: float = _speed()
+	starts = _player.get_attack_start_count()
+	Input.action_press("attack")
+	var from_run := await _frames_until(
+		func() -> bool: return int(_player.get_attack_start_count()) > starts, 60)
+	Input.action_release("attack")
+	_add("run_speed_before_attack", running, "m/s", "speed when the attack was pressed")
+	_add("attack_from_run", _ms(from_run), "ms", "press to swing accepted while running")
+	_release_all()
+	await _frames(45)
+
+	# --- Damage, and the multi-hit guard ----------------------------------
+	await _reset()
+	var target := _spawn_target(1.25, 1.0)
+	await _frames(4)
+	var health: Node = target.get_node("Health")
+	var start_hp: int = health.current
+
+	await _swing_once()
+	var after_one: int = health.current
+	_add("damage_one_swing", float(start_hp - after_one), "hp",
+		"health lost across a whole single swing — slash_damage is 1, so more than 1 means the arc double-dipped")
+
+	await _frames(40)
+	await _swing_once()
+	_add("damage_two_swings", float(start_hp - int(health.current)), "hp",
+		"cumulative after a second swing — proves the guard resets per swing")
+	_add("swing_ids_used", float(_player.get_attack_swing_id()), "count",
+		"per-swing instance counter after two swings")
+
+	target.queue_free()
+	await _frames(4)
+	_release_all()
+
+
+## Tap attack and wait out the whole swing.
+func _swing_once() -> void:
+	Input.action_press("attack")
+	await _frames(2)
+	Input.action_release("attack")
+	await _frames(34)
+
+
+## A minimal enemy stand-in: Health plus a BasicHurtBox3D on layer 6, built in
+## code so the combat suite does not depend on an enemy scene that another
+## builder owns. Placed `ahead` metres along the player's facing.
+func _spawn_target(ahead: float, height: float) -> Node3D:
+	var rig: Node3D = _player.get_node("Rig")
+	var facing := rig.global_basis.z
+	facing.y = 0.0
+	facing = facing.normalized()
+
+	var root := Node3D.new()
+	root.name = "ProbeTarget"
+
+	var health := Health.new()
+	health.name = "Health"
+	health.max = 99
+	health.current = 99
+	root.add_child(health)
+
+	var hurt := BasicHurtBox3D.new()
+	hurt.name = "HurtBox"
+	hurt.health = health
+	hurt.collision_layer = 32   # layer 6, enemy_hurtbox
+	hurt.collision_mask = 0
+	hurt.monitoring = false     # it only needs to BE found
+	hurt.monitorable = true
+	var shape := CollisionShape3D.new()
+	var sphere := SphereShape3D.new()
+	sphere.radius = 0.6
+	shape.shape = sphere
+	hurt.add_child(shape)
+	root.add_child(hurt)
+
+	_level.add_child(root)
+	root.global_position = _player.global_position + facing * ahead + Vector3.UP * height
+	return root
 
 
 # --- Plumbing -------------------------------------------------------------
