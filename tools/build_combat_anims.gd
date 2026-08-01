@@ -140,12 +140,38 @@ func _copy_glb_clips(lib: AnimationLibrary) -> void:
 # A pose is one dictionary; keys default to the rest pose when absent:
 #   root_y  float   vertical offset of the hips, metres in rig-local units
 #   root    Vector3 hip euler, degrees
-#   torso   Vector3 chest euler, degrees
+#   torso   Vector3 chest euler, degrees — and its Z is the most valuable channel
+#                   on this rig, see below
+
 #   arm_r   Vector3 sword arm
 #   arm_l   Vector3 off arm
 #   ant     Vector3 head plume — cheap follow-through, sells the whip
 #   leg_l   Vector3
 #   leg_r   Vector3
+#
+# TORSO ROLL IS THE CHEAPEST SILHOUETTE CHANGE THIS RIG HAS, and until this pass no
+# clip used it at all. Measured with tools/_poseprobe, and it follows from the geometry
+# the rest of this file already records: at the contact frame of a slash the blade
+# CANNOT get clear of the body. The hitbox has to reach a target 1.25 m in front at
+# chest height; the blade is 1.2 m from grip to tip and the hand can only travel 0.52 m
+# from the shoulder, so the blade's midpoint has to come within about 0.86 m of that
+# target, which leaves the tip at most half a metre beyond it — roughly a dozen pixels
+# outside the silhouette at 640, and only if the blade is held out sideways. Every
+# arrangement that gets the blade properly clear misses.
+#
+# So on those frames the BODY has to carry the read, which is what a blind critic said
+# after scoring six of seven effect frames as props: "this is the one frame where the
+# CHARACTER carries the read: the sword raised vertically overhead is unambiguous body
+# language, and the ring is a secondary decoration. This is the model to follow."
+#
+# Of the channels available, roll moves the most pixels per degree. Yaw on a box torso
+# is nearly invisible from behind — the box is symmetric, so 30 degrees of Y changes a
+# couple of corners. Pitch reads, and is used. Roll tilts the entire white mass, the
+# purple head knob and both arms off vertical at once, and a diagonal silhouette beside
+# an upright one is the single clearest "this is not idle" the shape language has. It
+# goes on the TORSO and not the root: the root's children include the legs, and rolling
+# those drives one foot into the ground and lifts the other off it, which is a rendering
+# fault rather than a pose.
 
 ## Keyframe times are chosen against MEASURED latency, not clip-local time. There
 ## is a fixed three-frame pipeline between a button going down and a method track
@@ -257,9 +283,13 @@ const CHARGE_LEN := 42.0 * F
 ## stubby side-flippers on a box, so an arm alone moves few pixels; a sunk root, a
 ## turned torso and staggered legs move the whole outline.
 func _build_charge() -> Animation:
+	# The 16 degrees of torso roll is not decoration: it is what keeps this pose and
+	# slash_a's wind-up the SAME shape now that the wind-up has 17. The whole argument
+	# for reusing the shape is that a player learns one vocabulary; a charge that stood
+	# square while the wind-up tilted would be two.
 	var braced := {
 		"grip": Vector3(0, 8, 86), "root_y": -0.034, "root": Vector3(-6, -16, 0),
-		"torso": Vector3(-14, -30, 0), "arm_r": Vector3(0, -36, -100),
+		"torso": Vector3(-14, -30, 16), "arm_r": Vector3(0, -36, -100),
 		"arm_l": Vector3(0, 40, -46), "ant": Vector3(0, 28, 12),
 		"leg_l": Vector3(-16, 0, 0), "leg_r": Vector3(12, 0, 0),
 	}
@@ -268,7 +298,7 @@ func _build_charge() -> Animation:
 	# that EVERY frame of this state is unmistakable.
 	var settle := braced.duplicate()
 	settle["root_y"] = -0.046
-	settle["torso"] = Vector3(-17, -33, 0)
+	settle["torso"] = Vector3(-17, -33, 18)
 	settle["arm_r"] = Vector3(0, -38, -104)
 	settle["ant"] = Vector3(0, 32, 15)
 	var keys: Array = [
@@ -298,26 +328,29 @@ func _build_slash_a() -> Animation:
 		# shoulder (tip measured at y 2.9, a metre clear of the head knob), chest
 		# coiled away, weight sunk onto a staggered stance. The hitbox key at frame 5
 		# has not moved, so no measured gameplay number changes.
-		[0.0 * F, {"grip": Vector3(0, 8, 90), "root_y": -0.026, "root": Vector3(-10, -14, 0),
-			"torso": Vector3(-18, -26, 0), "arm_r": Vector3(0, -34, -100),
-			"arm_l": Vector3(0, 34, -46), "ant": Vector3(0, 32, 14),
-			"leg_l": Vector3(-12, 0, 0), "leg_r": Vector3(-14, 0, 0)}],
+		[0.0 * F, {"grip": Vector3(0, 8, 90), "root_y": -0.038, "root": Vector3(-12, -16, 0),
+			"torso": Vector3(-22, -28, 17), "arm_r": Vector3(0, -34, -100),
+			"arm_l": Vector3(0, 42, -54), "ant": Vector3(0, 36, 18),
+			"leg_l": Vector3(-18, 0, 0), "leg_r": Vector3(-22, 0, 0)}],
 		# Two frames of hold, unwinding a fraction. Anticipation that arrives and then
 		# waits reads as weight; anticipation that arrives and leaves immediately reads
 		# as a twitch.
-		[2.0 * F, {"grip": Vector3(0, 8, 88), "root_y": -0.018, "root": Vector3(-8, -6, 0),
-			"torso": Vector3(-16, -20, 0), "arm_r": Vector3(0, -30, -96),
-			"arm_l": Vector3(0, 30, -42), "ant": Vector3(0, 30, 14),
-			"leg_r": Vector3(-10, 0, 0)}],
-		# Hitbox on. Still high — the first live frame has to be legible too.
-		[5.0 * F, {"grip": GRIP_CUT, "root_y": -0.010, "root": Vector3(-2, 0, 0),
-			"torso": Vector3(-6, -12, 0), "arm_r": Vector3(0, -16, -86),
-			"arm_l": Vector3(0, 26, -36), "ant": Vector3(0, 22, 10),
-			"leg_r": Vector3(-6, 0, 0)}],
-		[7.0 * F, {"grip": GRIP_CUT, "root_y": -0.022, "root": Vector3(6, 0, 0),
-			"torso": Vector3(6, 4, 0), "arm_r": Vector3(0, 12, -60),
-			"arm_l": Vector3(0, 12, -18), "ant": Vector3(0, -10, -18),
-			"leg_l": Vector3(-12, 0, 0)}],
+		[2.0 * F, {"grip": Vector3(0, 8, 88), "root_y": -0.030, "root": Vector3(-10, -8, 0),
+			"torso": Vector3(-20, -22, 15), "arm_r": Vector3(0, -30, -96),
+			"arm_l": Vector3(0, 38, -48), "ant": Vector3(0, 34, 16),
+			"leg_l": Vector3(-14, 0, 0), "leg_r": Vector3(-18, 0, 0)}],
+		# Hitbox on. Still high — the first live frame has to be legible too. The roll
+		# passes through zero here on its way to the other side, so the wind-up and the
+		# impact are tilted opposite ways and the swing counter-rotates through the
+		# middle of its own arc.
+		[5.0 * F, {"grip": GRIP_CUT, "root_y": -0.014, "root": Vector3(-2, 0, 0),
+			"torso": Vector3(-8, -14, 8), "arm_r": Vector3(0, -16, -86),
+			"arm_l": Vector3(0, 30, -40), "ant": Vector3(0, 24, 12),
+			"leg_r": Vector3(-8, 0, 0)}],
+		[7.0 * F, {"grip": GRIP_CUT, "root_y": -0.034, "root": Vector3(10, 0, 0),
+			"torso": Vector3(16, 8, -13), "arm_r": Vector3(0, 14, -74),
+			"arm_l": Vector3(0, 6, -6), "ant": Vector3(0, -16, -26),
+			"leg_l": Vector3(-20, 0, 0), "leg_r": Vector3(8, 0, 0)}],
 		# arm_r.y climbing hard from here is what carries the blade ACROSS the front
 		# rather than past the player's flank, and it is not optional: an arc kept
 		# entirely out to the side looked good and measured damage_one_swing = 0. To
@@ -326,25 +359,34 @@ func _build_slash_a() -> Animation:
 		# swing spends its first four live frames in clear air and its last two
 		# crossing the front — by which point the ribbon already holds the shape of
 		# the whole arc, which is what a still frame reads.
-		[9.0 * F, {"grip": GRIP_CUT, "root_y": -0.030, "root": Vector3(10, 0, 0),
-			"torso": Vector3(12, 16, 0), "arm_r": Vector3(0, 44, -42),
-			"arm_l": Vector3(0, 0, -8), "ant": Vector3(0, -22, -28),
-			"leg_l": Vector3(-18, 0, 0)}],
+		# THE CONTACT FRAME, and the one the legibility set judges the swing on
+		# (pair3 = the fourth frame of the live window). Its blade is unavoidably behind
+		# the head — see the note on torso roll above — so everything else is pushed as
+		# far as the rig goes: the hips sunk 0.15 m, 44 degrees of combined forward
+		# pitch, 26 degrees of roll, the stride opened to 48 degrees between the legs and
+		# the off arm thrown up and back. With the ribbon hidden this frame used to be
+		# an upright box with one stub arm out; it is now a body committed past its own
+		# centre of gravity.
+		[9.0 * F, {"grip": GRIP_CUT, "root_y": -0.070, "root": Vector3(18, 0, 0),
+			"torso": Vector3(26, 16, -24), "arm_r": Vector3(0, 36, -72),
+			"arm_l": Vector3(0, -14, 24), "ant": Vector3(0, -30, -40),
+			"leg_l": Vector3(-30, 0, 0), "leg_r": Vector3(14, 0, 0)}],
 		# Hitbox off with the blade through the front at chest height. The descent
 		# stops HERE: the tip reaches 2.3 m from a shoulder only 0.64 m off the
 		# ground, so a few more degrees of arm_r.z buries it, which is exactly what
 		# an earlier pass did — it finished the swing underground.
-		[11.0 * F, {"grip": GRIP_CUT, "root_y": -0.034, "root": Vector3(10, 0, 0),
-			"torso": Vector3(16, 26, 0), "arm_r": Vector3(0, 84, -32),
-			"arm_l": Vector3(0, -8, -2), "ant": Vector3(0, -26, -32),
-			"leg_l": Vector3(-20, 0, 0), "leg_r": Vector3(8, 0, 0)}],
-		[16.0 * F, {"grip": Vector3(0, 12, 68), "root_y": -0.018, "root": Vector3(4, 0, 0),
-			"torso": Vector3(14, 8, 0), "arm_r": Vector3(0, 30, -26),
-			"arm_l": Vector3(0, -2, -12), "ant": Vector3(0, -12, -14),
-			"leg_l": Vector3(-10, 0, 0)}],
-		[21.0 * F, {"grip": Vector3(0, 20, 34), "torso": Vector3(4, 2, 0), "arm_r": Vector3(0, 12, -38),
-			"arm_l": Vector3(0, 2, -14), "ant": Vector3(0, -4, -2),
-			"leg_l": Vector3(-4, 0, 0)}],
+		[11.0 * F, {"grip": GRIP_CUT, "root_y": -0.082, "root": Vector3(20, 0, 0),
+			"torso": Vector3(30, 26, -28), "arm_r": Vector3(0, 76, -60),
+			"arm_l": Vector3(0, -20, 16), "ant": Vector3(0, -34, -44),
+			"leg_l": Vector3(-34, 0, 0), "leg_r": Vector3(18, 0, 0)}],
+		[16.0 * F, {"grip": Vector3(0, 12, 68), "root_y": -0.042, "root": Vector3(10, 0, 0),
+			"torso": Vector3(18, 10, -16), "arm_r": Vector3(0, 32, -42),
+			"arm_l": Vector3(0, -6, -6), "ant": Vector3(0, -18, -20),
+			"leg_l": Vector3(-18, 0, 0), "leg_r": Vector3(8, 0, 0)}],
+		[21.0 * F, {"grip": Vector3(0, 20, 34), "root_y": -0.014, "root": Vector3(4, 0, 0),
+			"torso": Vector3(6, 2, -6), "arm_r": Vector3(0, 12, -38),
+			"arm_l": Vector3(0, 2, -14), "ant": Vector3(0, -6, -6),
+			"leg_l": Vector3(-6, 0, 0)}],
 		[27.0 * F, {"arm_r": Vector3(0, 0, 25)}],
 	]
 	return _assemble("slash_a", SLASH_LEN, keys,
@@ -368,42 +410,52 @@ func _build_slash_b() -> Animation:
 		# largely the pose it is blending out of, so the anticipation has to be waiting
 		# there already. Blade dropped low and back across the front, shoulders coiled
 		# the opposite way to slash_a's so the pair counter-rotate.
-		[0.0 * F, {"grip": Vector3(0, 10, 78), "root_y": -0.028, "root": Vector3(10, 14, 0),
-			"torso": Vector3(20, 34, 0), "arm_r": Vector3(0, 104, -14),
-			"arm_l": Vector3(0, -28, -26), "ant": Vector3(0, 24, -16),
-			"leg_l": Vector3(10, 0, 0), "leg_r": Vector3(-14, 0, 0)}],
-		[2.0 * F, {"grip": Vector3(0, 10, 80), "root_y": -0.022, "root": Vector3(8, 6, 0),
-			"torso": Vector3(18, 30, 0), "arm_r": Vector3(0, 96, -20),
-			"arm_l": Vector3(0, -24, -22), "ant": Vector3(0, 20, -14),
-			"leg_r": Vector3(-12, 0, 0)}],
-		# Hitbox on with the blade still across the front, so the follow-up reaches
-		# whatever the first swing hit. This is the frame that has to do the damage —
-		# and it is the mirror of slash_a, which spends its LAST live frames here.
-		[5.0 * F, {"grip": GRIP_CUT, "root_y": -0.026, "root": Vector3(6, 0, 0),
-			"torso": Vector3(14, 24, 0), "arm_r": Vector3(0, 76, -26),
-			"arm_l": Vector3(0, -18, -16), "ant": Vector3(0, 16, -10),
-			"leg_r": Vector3(-14, 0, 0)}],
-		[7.0 * F, {"grip": GRIP_CUT, "root_y": -0.012, "root": Vector3(0, 0, 0),
-			"torso": Vector3(4, 8, 0), "arm_r": Vector3(0, 44, -50),
-			"arm_l": Vector3(0, -2, -12), "ant": Vector3(0, 4, -2),
-			"leg_l": Vector3(-6, 0, 0)}],
-		[9.0 * F, {"grip": GRIP_CUT, "root_y": 0.004, "root": Vector3(-6, 0, 0),
-			"torso": Vector3(-8, -10, 0), "arm_r": Vector3(0, 16, -78),
-			"arm_l": Vector3(0, 12, -20), "ant": Vector3(0, -10, 10),
-			"leg_l": Vector3(-10, 0, 0)}],
+		[0.0 * F, {"grip": Vector3(0, 10, 78), "root_y": -0.052, "root": Vector3(14, 16, 0),
+			"torso": Vector3(26, 34, -22), "arm_r": Vector3(0, 104, -14),
+			"arm_l": Vector3(0, -36, -34), "ant": Vector3(0, 30, -22),
+			"leg_l": Vector3(16, 0, 0), "leg_r": Vector3(-24, 0, 0)}],
+		[2.0 * F, {"grip": Vector3(0, 10, 80), "root_y": -0.044, "root": Vector3(12, 8, 0),
+			"torso": Vector3(24, 30, -20), "arm_r": Vector3(0, 96, -20),
+			"arm_l": Vector3(0, -32, -30), "ant": Vector3(0, 26, -18),
+			"leg_l": Vector3(12, 0, 0), "leg_r": Vector3(-20, 0, 0)}],
+		# THE CONTACT FRAME, and the frame the legibility set judges slash_b on. It is
+		# also the ONLY frame of this clip that reaches: the rise carries the blade out
+		# of range by frame 6, so the whole of the follow-up's damage is here — measured,
+		# not assumed (tools/_poseprobe printed reach 0.66 at frame 5 and 1.19 at
+		# frame 6).
+		#
+		# arm_r.y is 54 rather than 76, which holds the blade out on the right instead of
+		# letting it cross to the centre. The midpoint still comes within 0.86 m of a
+		# target 1.25 m ahead, so nothing about the reach changes, but the tip sits
+		# further outboard and therefore further from the body's screen silhouette — the
+		# most this frame's blade can be given. The rest is the body: 34 degrees of
+		# forward pitch, 22 of roll, hips sunk 0.10 m, legs 40 degrees apart. With the
+		# ribbon hidden this frame was previously indistinguishable from standing still.
+		[5.0 * F, {"grip": GRIP_CUT, "root_y": -0.048, "root": Vector3(10, 0, 0),
+			"torso": Vector3(24, 18, -20), "arm_r": Vector3(0, 50, -52),
+			"arm_l": Vector3(0, -28, -26), "ant": Vector3(0, 20, -14),
+			"leg_l": Vector3(14, 0, 0), "leg_r": Vector3(-26, 0, 0)}],
+		[7.0 * F, {"grip": GRIP_CUT, "root_y": -0.020, "root": Vector3(2, 0, 0),
+			"torso": Vector3(8, 8, -10), "arm_r": Vector3(0, 32, -66),
+			"arm_l": Vector3(0, -6, -14), "ant": Vector3(0, 6, -4),
+			"leg_l": Vector3(4, 0, 0), "leg_r": Vector3(-12, 0, 0)}],
+		[9.0 * F, {"grip": GRIP_CUT, "root_y": 0.008, "root": Vector3(-8, 0, 0),
+			"torso": Vector3(-12, -12, 12), "arm_r": Vector3(0, 8, -84),
+			"arm_l": Vector3(0, 16, -24), "ant": Vector3(0, -14, 14),
+			"leg_l": Vector3(-14, 0, 0)}],
 		# Hitbox off with the blade vertical above the shoulder — a follow-through
 		# that is still legible five frames later, which is where recovery is shot.
-		[11.0 * F, {"grip": Vector3(0, 8, 92), "root_y": 0.010, "root": Vector3(-10, 0, 0),
-			"torso": Vector3(-14, -20, 0), "arm_r": Vector3(0, 0, -96),
-			"arm_l": Vector3(0, 20, -26), "ant": Vector3(0, -16, 18),
-			"leg_l": Vector3(-12, 0, 0), "leg_r": Vector3(6, 0, 0)}],
-		[16.0 * F, {"grip": Vector3(0, 12, 74), "root_y": -0.006, "root": Vector3(-4, 0, 0),
-			"torso": Vector3(-6, -10, 0), "arm_r": Vector3(0, 4, -70),
-			"arm_l": Vector3(0, 14, -22), "ant": Vector3(0, -8, 10),
-			"leg_l": Vector3(-7, 0, 0)}],
-		[21.0 * F, {"grip": Vector3(0, 20, 36), "torso": Vector3(-2, -2, 0), "arm_r": Vector3(0, 0, -40),
-			"arm_l": Vector3(0, 6, -16), "ant": Vector3(0, -2, 2),
-			"leg_l": Vector3(-3, 0, 0)}],
+		[11.0 * F, {"grip": Vector3(0, 8, 92), "root_y": 0.016, "root": Vector3(-14, 0, 0),
+			"torso": Vector3(-20, -22, 20), "arm_r": Vector3(0, -8, -100),
+			"arm_l": Vector3(0, 26, -32), "ant": Vector3(0, -22, 24),
+			"leg_l": Vector3(-18, 0, 0), "leg_r": Vector3(10, 0, 0)}],
+		[16.0 * F, {"grip": Vector3(0, 12, 74), "root_y": -0.006, "root": Vector3(-6, 0, 0),
+			"torso": Vector3(-10, -12, 12), "arm_r": Vector3(0, 4, -70),
+			"arm_l": Vector3(0, 18, -26), "ant": Vector3(0, -12, 14),
+			"leg_l": Vector3(-10, 0, 0), "leg_r": Vector3(4, 0, 0)}],
+		[21.0 * F, {"grip": Vector3(0, 20, 36), "torso": Vector3(-4, -4, 4), "arm_r": Vector3(0, 0, -40),
+			"arm_l": Vector3(0, 6, -16), "ant": Vector3(0, -4, 4),
+			"leg_l": Vector3(-4, 0, 0)}],
 		[27.0 * F, {"arm_r": Vector3(0, 0, 25)}],
 	]
 	return _assemble("slash_b", SLASH_LEN, keys,
@@ -429,44 +481,53 @@ func _build_spin() -> Animation:
 		# as slash_a: the frame the state machine first reports is still blending, so
 		# the anticipation must be waiting on frame 0 rather than arriving on frame 3.
 		[0.0 * F, {"grip": Vector3(0, 8, 86), "root_y": -0.040, "root": Vector3(-8, 22, 0),
-			"torso": Vector3(-12, 20, 0), "arm_r": Vector3(0, -34, -96),
+			"torso": Vector3(-12, 20, 14), "arm_r": Vector3(0, -34, -96),
 			"arm_l": Vector3(0, 34, -22), "ant": Vector3(0, 24, 10),
 			"leg_l": Vector3(-14, 0, 0), "leg_r": Vector3(-14, 0, 0)}],
 		# Crouch and coil, blade up. This is the frame that has to say "here it comes".
-		[3.0 * F, {"grip": Vector3(0, 8, 86), "root_y": -0.048, "root": Vector3(-8, 34, 0),
-			"torso": Vector3(-12, 26, 0), "arm_r": Vector3(0, -34, -92),
+		[3.0 * F, {"grip": Vector3(0, 8, 86), "root_y": -0.052, "root": Vector3(-8, 34, 0),
+			"torso": Vector3(-12, 26, 16), "arm_r": Vector3(0, -34, -92),
 			"arm_l": Vector3(0, 34, -18), "ant": Vector3(0, 24, 10),
-			"leg_l": Vector3(-16, 0, 0), "leg_r": Vector3(-16, 0, 0)}],
+			"leg_l": Vector3(-18, 0, 0), "leg_r": Vector3(-18, 0, 0)}],
 		# Blade snaps out and up; from here the arms hold while the hips spin.
-		[7.0 * F, {"grip": GRIP_CUT, "root_y": -0.008, "root": Vector3(4, 0, 0), "torso": Vector3(8, 6, 0),
-			"arm_r": Vector3(0, 26, -30), "arm_l": Vector3(0, -30, 44),
-			"ant": Vector3(0, 0, -26), "leg_l": Vector3(-8, 0, 0)}],
-		[10.0 * F, {"grip": GRIP_CUT, "root_y": 0.016, "root": Vector3(4, -120, 0), "torso": Vector3(8, 6, 0),
-			"arm_r": Vector3(0, 28, -32), "arm_l": Vector3(0, -32, 46),
-			"ant": Vector3(0, 0, -30), "leg_l": Vector3(-6, 0, 0)}],
-		[13.0 * F, {"grip": GRIP_CUT, "root_y": 0.022, "root": Vector3(4, -240, 0), "torso": Vector3(8, 6, 0),
-			"arm_r": Vector3(0, 26, -30), "arm_l": Vector3(0, -30, 44),
-			"ant": Vector3(0, 0, -32), "leg_l": Vector3(-6, 0, 0)}],
-		[16.0 * F, {"grip": GRIP_CUT, "root_y": 0.022, "root": Vector3(4, -360, 0), "torso": Vector3(8, 6, 0),
-			"arm_r": Vector3(0, 28, -32), "arm_l": Vector3(0, -32, 46),
-			"ant": Vector3(0, 0, -32), "leg_l": Vector3(-6, 0, 0)}],
-		[19.0 * F, {"grip": GRIP_CUT, "root_y": 0.016, "root": Vector3(4, -480, 0), "torso": Vector3(8, 6, 0),
-			"arm_r": Vector3(0, 26, -30), "arm_l": Vector3(0, -30, 44),
-			"ant": Vector3(0, 0, -30), "leg_l": Vector3(-6, 0, 0)}],
-		[22.0 * F, {"grip": GRIP_CUT, "root_y": 0.006, "root": Vector3(4, -600, 0), "torso": Vector3(6, 6, 0),
-			"arm_r": Vector3(0, 26, -26), "arm_l": Vector3(0, -28, 42),
-			"ant": Vector3(0, 0, -24), "leg_l": Vector3(-4, 0, 0)}],
-		[25.0 * F, {"grip": GRIP_CUT, "root": Vector3(2, -720, 0), "torso": Vector3(4, 4, 0),
+		#
+		# The held pose carries a constant 22 degrees of torso roll and 0.05 m of lift,
+		# and both are new. On this rig the spin's only silhouette cue used to be the
+		# hips' yaw, which on a symmetric white box is close to nothing — a blind critic
+		# with the ribbon hidden found no weapon and no pose on the frame where the blade
+		# passes in front of the body, which happens twice per revolution and is where
+		# the legibility set samples. Rolled out against the rotation and lifted off the
+		# floor, the body is tilted, off its legs, and asymmetric on every frame of both
+		# revolutions, whichever way it happens to be facing.
+		[7.0 * F, {"grip": GRIP_CUT, "root_y": -0.008, "root": Vector3(4, 0, 0), "torso": Vector3(8, 6, -8),
+			"arm_r": Vector3(0, 26, -36), "arm_l": Vector3(0, -30, 44),
+			"ant": Vector3(0, 0, -26), "leg_l": Vector3(-14, 0, 0), "leg_r": Vector3(10, 0, 0)}],
+		[10.0 * F, {"grip": GRIP_CUT, "root_y": 0.040, "root": Vector3(4, -120, 0), "torso": Vector3(8, 6, -22),
+			"arm_r": Vector3(0, 28, -38), "arm_l": Vector3(0, -32, 46),
+			"ant": Vector3(0, 0, -30), "leg_l": Vector3(-26, 0, 0), "leg_r": Vector3(20, 0, 0)}],
+		[13.0 * F, {"grip": GRIP_CUT, "root_y": 0.050, "root": Vector3(4, -240, 0), "torso": Vector3(8, 6, -22),
+			"arm_r": Vector3(0, 26, -36), "arm_l": Vector3(0, -30, 44),
+			"ant": Vector3(0, 0, -32), "leg_l": Vector3(-28, 0, 0), "leg_r": Vector3(22, 0, 0)}],
+		[16.0 * F, {"grip": GRIP_CUT, "root_y": 0.050, "root": Vector3(4, -360, 0), "torso": Vector3(8, 6, -22),
+			"arm_r": Vector3(0, 28, -38), "arm_l": Vector3(0, -32, 46),
+			"ant": Vector3(0, 0, -32), "leg_l": Vector3(-28, 0, 0), "leg_r": Vector3(22, 0, 0)}],
+		[19.0 * F, {"grip": GRIP_CUT, "root_y": 0.040, "root": Vector3(4, -480, 0), "torso": Vector3(8, 6, -22),
+			"arm_r": Vector3(0, 26, -36), "arm_l": Vector3(0, -30, 44),
+			"ant": Vector3(0, 0, -30), "leg_l": Vector3(-26, 0, 0), "leg_r": Vector3(20, 0, 0)}],
+		[22.0 * F, {"grip": GRIP_CUT, "root_y": 0.020, "root": Vector3(4, -600, 0), "torso": Vector3(6, 6, -18),
+			"arm_r": Vector3(0, 26, -30), "arm_l": Vector3(0, -28, 42),
+			"ant": Vector3(0, 0, -24), "leg_l": Vector3(-20, 0, 0), "leg_r": Vector3(14, 0, 0)}],
+		[25.0 * F, {"grip": GRIP_CUT, "root": Vector3(2, -720, 0), "torso": Vector3(4, 4, -8),
 			"arm_r": Vector3(0, 22, -18), "arm_l": Vector3(0, -22, 30),
-			"ant": Vector3(0, 0, -16)}],
+			"ant": Vector3(0, 0, -16), "leg_l": Vector3(-8, 0, 0), "leg_r": Vector3(6, 0, 0)}],
 		# Recovery: absorb, then stand up.
-		[30.0 * F, {"grip": Vector3(0, 15, 60), "root_y": -0.030, "root": Vector3(-10, -720, 0), "torso": Vector3(12, -8, 0),
+		[30.0 * F, {"grip": Vector3(0, 15, 60), "root_y": -0.038, "root": Vector3(-10, -720, 0), "torso": Vector3(14, -8, 12),
 			"arm_r": Vector3(0, 26, -34), "arm_l": Vector3(0, -22, -26),
-			"ant": Vector3(0, -8, 8), "leg_l": Vector3(-16, 0, 0),
-			"leg_r": Vector3(10, 0, 0)}],
-		[36.0 * F, {"grip": Vector3(0, 20, 30), "root_y": -0.010, "root": Vector3(-4, -720, 0), "torso": Vector3(4, -4, 0),
+			"ant": Vector3(0, -8, 8), "leg_l": Vector3(-20, 0, 0),
+			"leg_r": Vector3(12, 0, 0)}],
+		[36.0 * F, {"grip": Vector3(0, 20, 30), "root_y": -0.012, "root": Vector3(-4, -720, 0), "torso": Vector3(4, -4, 4),
 			"arm_r": Vector3(0, 10, -14), "arm_l": Vector3(0, -8, -12),
-			"ant": Vector3(0, -4, 3), "leg_l": Vector3(-6, 0, 0)}],
+			"ant": Vector3(0, -4, 3), "leg_l": Vector3(-8, 0, 0)}],
 		[42.0 * F, {"root": Vector3(0, -720, 0)}],
 	]
 	return _assemble("spin_attack", SPIN_LEN, keys,

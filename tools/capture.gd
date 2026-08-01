@@ -36,6 +36,9 @@ var _failures: Array = []
 ## overrides instead of a set of numbers that have to be kept in sync by hand.
 var _default_pitch := 0.0
 var _default_spring := 0.0
+## Every node a shot's `hide_effects` switches off. Resolved once, restored after
+## each shot, so one hidden shot cannot leak into the next.
+var _effect_nodes: Array[Node3D] = []
 
 
 func _ready() -> void:
@@ -65,6 +68,7 @@ func _ready() -> void:
 	_pivot = _player.get_node_or_null("CameraPivot") as Node3D
 	_arm = _player.get_node_or_null("CameraPivot/SpringArm3D") as SpringArm3D
 	_freeze_pickups()
+	_collect_effects()
 	if _arm != null:
 		_default_pitch = _arm.rotation.x
 		_default_spring = _arm.spring_length
@@ -182,7 +186,11 @@ func _run_shot(shot: Dictionary) -> void:
 	# Immediately before the frame is taken, not after warmup: the action itself is
 	# what moves the camera, so locking any earlier does not help.
 	_lock_camera(shot)
+	var hidden := _hide_effects(shot)
 	await _save(name)
+	for node in hidden:
+		node.visible = true
+		node.process_mode = Node.PROCESS_MODE_INHERIT
 	_check_expectations(shot, name)
 	_release_all()
 
@@ -232,6 +240,53 @@ func _freeze_pickups() -> void:
 			area.monitoring = false
 			frozen += 1
 	print("capture: froze %d world Area3D(s) so pickups cannot change between shots" % frozen)
+
+
+## Find the VFX nodes a `hide_effects` shot switches off.
+##
+## Located by script class rather than by node name, so renaming a node in
+## player.tscn cannot silently turn the pose test back into a normal capture — a
+## failure mode this harness has already been bitten by twice.
+func _collect_effects() -> void:
+	for node in _player.find_children("*", "MeshInstance3D", true, false):
+		var mesh := node as MeshInstance3D
+		var script: Script = mesh.get_script()
+		if script == null:
+			continue
+		if script.get_global_name() in [&"SwordTrail", &"SpinRing", &"ChargeRing"]:
+			_effect_nodes.append(mesh)
+	var glow := _player.get_node_or_null(
+		"Rig/Character/character/root/torso/arm-right/SwordGrip/ChargeGlow") as Node3D
+	if glow != null:
+		_effect_nodes.append(glow)
+	print("capture: %d effect node(s) available to hide_effects shots" % _effect_nodes.size())
+
+
+## The "hide the body, keep only the weapon" test from PRIOR-ART-VISUAL.md, run the
+## other way round: hide every EFFECT and keep the pose. If an action frame is
+## indistinguishable from its idle with the ribbon and the rings switched off, then
+## the VFX is carrying the whole read and the animation is carrying none — which is
+## the diagnosis a blind critic reached from the other direction, saying six of seven
+## effects read as props and the one frame that worked was carried by the pose.
+##
+## Returns the nodes it switched off so the caller can put them back.
+##
+## `process_mode` as well as `visible`, and that is not belt-and-braces: SwordTrail
+## rebuilds its ImmediateMesh in `_physics_process` and sets `visible = true` at the
+## end of it, so hiding it alone does nothing at all — a physics tick runs between
+## here and `frame_post_draw` and puts the ribbon straight back. The first run of
+## this test produced seven frames with the ribbon fully drawn and nothing to say
+## it had failed.
+func _hide_effects(shot: Dictionary) -> Array[Node3D]:
+	var hidden: Array[Node3D] = []
+	if not bool(shot.get("hide_effects", false)):
+		return hidden
+	for node in _effect_nodes:
+		if node.visible:
+			node.process_mode = Node.PROCESS_MODE_DISABLED
+			node.visible = false
+			hidden.append(node)
+	return hidden
 
 
 ## Snap the camera to exactly where it belongs, killing the lag.

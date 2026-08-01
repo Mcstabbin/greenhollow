@@ -33,7 +33,11 @@ extends MeshInstance3D
 ## deliberately a little wider than the blade's own reach — the ring is the
 ## threat's footprint, not a tracing of the sword.
 @export var radius_from: float = 0.5
-@export var radius_to: float = 2.9
+## 2.45 rather than 2.9. On the riverbank spin a critic found the effect "hangs in the
+## air over the water, below the level of the bank, in contact with nothing", and a
+## footprint wider than the ground the character is standing on is how that happens. The
+## spin's blade tip reaches 2.1 m, so 2.45 still reads as wider than the sword.
+@export var radius_to: float = 2.45
 ## Seconds the flash lasts. Matched to the spin's 300 ms live window plus the two
 ## frames of latency between the key and the hitbox, not to the whole clip, so it is
 ## gone before the recovery pose. Shortening this to 0.30 put the ring *just* outside

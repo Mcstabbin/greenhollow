@@ -84,6 +84,44 @@ extends MeshInstance3D
 ##     honest reading of that number is that this change is about DISTRIBUTION, not
 ##     ink — same order of coverage, arranged as a hollow broken ring instead of a
 ##     filled sheet.
+##  7. EVERY PIECE IS A LENS. Note 6 was not enough, and the reason is worth stating
+##     plainly because it explains two rounds at once. A blind critic asked whether
+##     seven effect frames read as motion or as objects named an object for six of
+##     them — a sombrero brim, a tyre, a traffic cone, two playing cards, a flag, a
+##     ring of paving slabs — and diagnosed it exactly: "all the orange effects are
+##     opaque, uniformly saturated, hard-edged, black-outlined, and the same visual
+##     weight as world geometry. The black outline in particular is what makes them
+##     props — everything solid in this world has a black outline, so anything with one
+##     reads as solid." Round 3's un-outlined ribbon read as a lighting artefact and
+##     round 5's outlined ribbon reads as a prop; both verdicts were right, so the
+##     outline is not the variable. The SHAPE has to carry the motion.
+##     Three things follow, and all three are shape:
+##       * The width curve is a HUMP, not a ramp. It was 0.26 -> 0.97 from tail to
+##         blade, so the widest cross-section was the newest one — a full-width radial
+##         line 1.75 blade lengths long sitting at the blade. That straight edge is
+##         literally what the critic called "a hard straight edge at its wide end", and
+##         with the apex at the tail it is why the shape read as a cone. It is now
+##         0.05 -> 0.58 -> 0.30, so the ribbon bulges in the MIDDLE and narrows toward
+##         both ends: a crescent has two points, a cone has one.
+##       * Every unbroken run is feathered to a point at any end that touches a gap
+##         (`feather_points`). The gaps used to terminate in full-width radial edges,
+##         which is what made the trailing slivers read as "two playing cards" — flat
+##         quads with hard corners. Feathered, each sliver is a lens, and a lens with
+##         no straight edge anywhere on it cannot be a card.
+##       * `max_span` caps the ribbon's arc length so the spin's ribbon can never close
+##         into a complete annulus. At 12 ticks the spin's blade covers roughly 480
+##         degrees, so the ribbon wrapped past itself and the result was a closed
+##         ring — the "tyre lying on the ground", and the shape with the least motion
+##         information available, because a closed loop has no leading end. Capped, the
+##         spin leaves an open crescent with a tip at each end, and a slash is
+##         untouched because a slash never gets that long.
+##     A run whose widest cross-section is under `min_sliver` is dropped rather than
+##     drawn. That is the fix for a second, separate finding: "an orange quad with a
+##     cream stripe hovers in mid-air about a body-width to the character's right, over
+##     open grass, attached to nothing. It reads as a rendering leftover." It was the
+##     tail-most gapped run — a genuine sliver of a genuine trail, but small, far from
+##     the blade and connected to nothing visible. Two gaps instead of three, moved off
+##     the extreme tail, plus a size floor.
 
 ## The blade's inner and outer ends. Sampled every tick; the quad between two
 ## consecutive samples is one segment of the ribbon.
@@ -98,12 +136,31 @@ extends MeshInstance3D
 ## inserts none, so counting points would make the ribbon's length depend on how
 ## hard the blade happened to be moving.
 @export var history_ticks: float = 12.0
+## Hard ceiling on the ribbon's arc length, in metres of blade-midpoint travel, and
+## the reason the spin no longer draws a closed ring. `history_ticks` is a TIME
+## budget, and time is the wrong budget for a move that sweeps 40 degrees per tick:
+## the spin's midpoint circles at about 1.7 m radius, so twelve ticks is roughly
+## 14 m of travel around a 10.5 m circle and the ribbon overlaps itself into an
+## annulus. A blind critic called that frame "a tyre lying on the ground", and it is
+## also the least informative shape the effect could take, because a closed loop has
+## no leading end and therefore no direction. 5.0 m leaves the spin an open crescent
+## of about 170 degrees with a tip at each end. A slash's blade midpoint covers about
+## 0.53 m per tick through the live window — measured with tools/_poseprobe, not
+## assumed — so a slash only meets this cap late in its recovery, and never on the
+## frames the legibility set judges.
+@export var max_span: float = 5.0
 ## Where the ribbon's OUTER edge sits, past the blade tip, in blade lengths. This
 ## is the leading arc — the boundary furthest from the body and first into the
 ## space the blade is about to occupy — and it is deliberately the one edge that
 ## does NOT move: the crescent opens and closes by sliding its inner edge, so the
 ## silhouette a player tracks stays put.
-@export var outer_reach: float = 0.75
+##
+## 0.60, down from 0.75. The ribbon's radius is what decides how far the effect
+## reaches past the character into open space, and on the riverbank spin a critic
+## found "the near/lower half of the loop hangs in the air over the water, below the
+## level of the bank, in contact with nothing." A smaller outer edge plus `max_span`
+## keeps the ribbon over the ground the character is standing on.
+@export var outer_reach: float = 0.60
 ## Where the ribbon's inner edge sits at its widest (newest) cross-section, past
 ## the hand, in blade lengths. Small: it only has to cover the grip so the ribbon
 ## looks like it comes off the blade. Everything older narrows away from it.
@@ -142,12 +199,40 @@ extends MeshInstance3D
 @export var width_curve: Curve
 ## Where along the ribbon the trailing slivers separate, as a fraction from the
 ## tail. Only the older part is broken; see note 6 in the header.
-@export var gap_centres: PackedFloat32Array = PackedFloat32Array([0.13, 0.33, 0.53])
+##
+## ONE gap, down from three, and the count is the point. At three the piece behind the
+## first gap was a tenth of the ribbon's length sitting at the far end of the smear,
+## and that piece is the "orange quad ... attached to nothing" a critic found in two
+## separate frames — never dropped geometry, just a real sliver too small and too far
+## from the blade to be read as part of anything. Two gaps fixed that and exposed the
+## other end of the same problem: on the spin, whose ribbon wraps 170 degrees, three
+## pieces are spread most of the way round the character and the frame reads as four
+## unrelated fragments rather than as one sweep. A single break splits the smear into a
+## trailing tip and a leading crescent, which still says "moving" — the whole argument
+## for gaps — without ever fragmenting.
+@export var gap_centres: PackedFloat32Array = PackedFloat32Array([0.34])
 ## How wide each of those gaps is, in the same fraction-of-length units. 0.06 of a
 ## ribbon that spans roughly a third of the frame is on the order of a dozen pixels at
 ## 640 px — enough to read as a gap, not enough to look like dropped geometry. 0.07 was
 ## tried and cost the frames a prop already eats; see the width curve in player.tscn.
-@export var gap_width: float = 0.06
+@export var gap_width: float = 0.07
+## Cross-sections over which a run narrows to nothing at an end that touches a gap.
+##
+## This is the whole answer to "the panels read as two playing cards because they are
+## flat quads with hard corners and no implied path". A gap used to cut the ribbon
+## with a full-width radial edge on each side, so every sliver was a quadrilateral
+## with four corners. Feathered, each sliver comes to a point at both ends and has no
+## straight edge anywhere on it. Only INTERIOR ends are feathered: the ribbon's newest
+## cross-section sits on the blade and is narrowed by the width curve instead, because
+## taking it to zero as well would leave the wind-up frame — one of the frames the
+## legibility set is judged on — with no visible ribbon at all.
+@export var feather_points: int = 2
+## Smallest opening, in blade lengths, a run has to reach at its widest before it is
+## drawn at all. Anything under this is a few pixels of orange detached from the rest
+## of the ribbon, which reads as a rendering leftover rather than as a trail. It also
+## makes the fade dissipate rather than shrink uniformly: as `_fade` closes the
+## narrowest runs drop out one at a time.
+@export var min_sliver: float = 0.12
 ## The wind-up. A critic could only find the wind-up frame by comparing it against
 ## its paired idle — "a forearm raised one body-width with no flash, no trail, no
 ## ground mark and no change in stance is not enough at speed". So the ribbon now
@@ -170,14 +255,23 @@ extends MeshInstance3D
 ## vertices keeps every band a flat colour, which is the whole art direction — a
 ## smooth gradient beside a 1.3 px hard contour reads as a rendering error.
 ##
-## The core sits at 0.68-0.86, i.e. 18% of the width on the tip side, because that
+## The core sits at 0.72-0.94, i.e. 22% of the width on the tip side, because that
 ## is the leading edge of the swept shape — the part furthest from the body and
 ## first into the space the blade is about to occupy.
-const BAND_STOPS: Array[float] = [0.0, 0.05, 0.68, 0.86, 0.95, 1.0]
+##
+## It used to sit at 0.68-0.86 with an amber band OUTSIDE it as well as inside, so the
+## near-white ran down the middle of the shape with saturated colour on both sides —
+## and a bright stripe down the middle of a coloured solid is what a lit, curved face
+## looks like. A critic reading the ground ring said exactly that of the same
+## structure: "pale peach interior with a dark brown outer rim. A trail does not have a
+## lit inside face and a shaded rim." Pushed out to 0.94 with only a 6% dark contour
+## beyond it, the core IS the leading edge and the shape darkens away behind it, which
+## is what a smear does.
+const BAND_STOPS: Array[float] = [0.0, 0.05, 0.72, 0.94, 1.0]
 const ROLE_EDGE := 0
 const ROLE_MID := 1
 const ROLE_CORE := 2
-const BAND_ROLES: Array[int] = [ROLE_EDGE, ROLE_MID, ROLE_CORE, ROLE_MID, ROLE_EDGE]
+const BAND_ROLES: Array[int] = [ROLE_EDGE, ROLE_MID, ROLE_CORE, ROLE_EDGE]
 ## Longitudinal holds. Guilty Gear Xrd animates at 15 fps with interpolation off —
 ## "every frame now is a key frame" — and a continuously lerped ribbon is exactly
 ## what makes a smear look like a 3D ribbon instead of a drawn effect. Three flat
@@ -301,18 +395,43 @@ func _push(b: Vector3, t: Vector3, age: float) -> void:
 	_bloom.push_back(lerpf(bloom_from, 1.0, clampf(_ticks / maxf(bloom_ticks, 0.001), 0.0, 1.0)))
 
 
-## Drop the tail. Ageing runs during the fade too, so a finished ribbon shortens
-## as well as thinning.
+## Drop the tail, on two budgets: age, and arc length.
+##
+## Ageing runs during the fade too, so a finished ribbon shortens as well as thinning.
+## The length budget is what stops the spin closing a ring — see `max_span`.
 func _expire() -> void:
 	var drop := 0
 	while drop < _age.size() and _age[drop] > history_ticks:
 		drop += 1
+	drop += _over_span(drop)
 	if drop == 0:
 		return
 	_base = _base.slice(drop)
 	_tip = _tip.slice(drop)
 	_age = _age.slice(drop)
 	_bloom = _bloom.slice(drop)
+
+
+## How many more cross-sections past `from` have to go before the spine's arc length
+## fits inside `max_span`. Walked from the tail so the newest travel always survives.
+func _over_span(from: int) -> int:
+	if max_span <= 0.0 or _base.size() - from < 3:
+		return 0
+	var total := 0.0
+	var seg := PackedFloat32Array()
+	for i in range(from + 1, _base.size()):
+		var d := _spine_at(i - 1).distance_to(_spine_at(i))
+		seg.push_back(d)
+		total += d
+	var extra := 0
+	while total > max_span and extra < seg.size() - 1:
+		total -= seg[extra]
+		extra += 1
+	return extra
+
+
+func _spine_at(i: int) -> Vector3:
+	return (_base[i] + _tip[i]) * 0.5
 
 
 func _clear() -> void:
@@ -347,6 +466,11 @@ func _rebuild() -> void:
 	spine = _smoothed(spine)
 	span = _smoothed(span)
 
+	# Which stretches of the length are solid, and where they start and end. The runs
+	# have to be known BEFORE the widths are, because a run's ends are feathered to a
+	# point and that changes the width — see `feather_points`.
+	var runs := _runs(count)
+
 	# Cross-sections are measured in BLADE LENGTHS along the blade's own axis: 0 is
 	# the base, 1 the tip. The outer edge is pinned one `outer_reach` past the tip
 	# and every cross-section takes its width INWARD from there, rather than
@@ -354,51 +478,85 @@ func _rebuild() -> void:
 	# asymmetry is the whole of note 6: the ribbon collapses onto its leading arc,
 	# the middle of a swept circle stays empty, and the tail no longer reaches the
 	# grip. Width is tapered by the curve, narrowed by the bloom the sample was born
-	# with, and collapsed by the fade — all multiplicative, none touching alpha.
+	# with, pinched to a point at any gap-facing end, and collapsed by the fade — all
+	# multiplicative, none touching alpha.
 	var s_out := 1.0 + outer_reach
 	var full := s_out + inner_reach
 	var fade := clampf(_fade, 0.0, 1.0)
-	var s_in := PackedFloat32Array()
-	var solid := PackedByteArray()
-	s_in.resize(count)
-	solid.resize(count)
+	var open := PackedFloat32Array()
+	open.resize(count)
 	for i in count:
 		var u := float(i) / float(count - 1)
-		s_in[i] = s_out - full * _taper(u) * _bloom[i] * fade
-		solid[i] = 0 if _in_gap(u) else 1
+		open[i] = full * _taper(u) * _bloom[i] * fade
+	for run: Vector2i in runs:
+		for k in range(run.x, run.y + 1):
+			open[k] *= _feather(k, run, count)
 
-	# One strip per band per unbroken run. A run holding a single cross-section
-	# contains no quad and would draw nothing, so short runs are dropped rather than
-	# emitted as a degenerate surface.
-	for band in BAND_ROLES.size():
-		var v0: float = BAND_STOPS[band]
-		var v1: float = BAND_STOPS[band + 1]
-		var role: int = BAND_ROLES[band]
-		var i := 0
-		while i < count:
-			if solid[i] == 0:
-				i += 1
-				continue
-			var run_end := i
-			while run_end + 1 < count and solid[run_end + 1] == 1:
-				run_end += 1
-			if run_end > i:
-				_immediate.surface_begin(Mesh.PRIMITIVE_TRIANGLE_STRIP)
-				for k in range(i, run_end + 1):
-					var u := float(k) / float(count - 1)
-					var colour := _band_colour(role, u, fade)
-					_immediate.surface_set_color(colour)
-					_immediate.surface_add_vertex(_edge(spine[k], span[k], s_in[k], s_out, v0))
-					_immediate.surface_set_color(colour)
-					_immediate.surface_add_vertex(_edge(spine[k], span[k], s_in[k], s_out, v1))
-				_immediate.surface_end()
-			i = run_end + 1
+	# One strip per band per run. A run holding a single cross-section contains no
+	# quad and would draw nothing; a run too narrow to read is a detached sliver that
+	# looks like dropped geometry. Both are skipped rather than emitted.
+	for run: Vector2i in runs:
+		if run.y <= run.x or _widest(open, run) < min_sliver:
+			continue
+		for band in BAND_ROLES.size():
+			var v0: float = BAND_STOPS[band]
+			var v1: float = BAND_STOPS[band + 1]
+			var role: int = BAND_ROLES[band]
+			_immediate.surface_begin(Mesh.PRIMITIVE_TRIANGLE_STRIP)
+			for k in range(run.x, run.y + 1):
+				var u := float(k) / float(count - 1)
+				var colour := _band_colour(role, u, fade)
+				var s_in := s_out - open[k]
+				_immediate.surface_set_color(colour)
+				_immediate.surface_add_vertex(_edge(spine[k], span[k], s_in, s_out, v0))
+				_immediate.surface_set_color(colour)
+				_immediate.surface_add_vertex(_edge(spine[k], span[k], s_in, s_out, v1))
+			_immediate.surface_end()
 
 
+## The unbroken stretches of the length, as inclusive [first, last] index pairs.
+func _runs(count: int) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	var i := 0
+	while i < count:
+		if _in_gap(float(i) / float(count - 1)):
+			i += 1
+			continue
+		var last := i
+		while last + 1 < count and not _in_gap(float(last + 1) / float(count - 1)):
+			last += 1
+		out.append(Vector2i(i, last))
+		i = last + 1
+	return out
+
+
+## How much of a cross-section's width survives, given how close it is to an end of
+## its run. Only ends that face a GAP are pinched: index 0 is the ribbon's tail and
+## `count - 1` is the blade, and both of those are shaped by the width curve instead.
+func _feather(k: int, run: Vector2i, count: int) -> float:
+	var steps := float(maxi(feather_points, 0) + 1)
+	var f := 1.0
+	if run.x > 0:
+		f = minf(f, float(k - run.x + 1) / steps)
+	if run.y < count - 1:
+		f = minf(f, float(run.y - k + 1) / steps)
+	return f
+
+
+func _widest(open: PackedFloat32Array, run: Vector2i) -> float:
+	var out := 0.0
+	for k in range(run.x, run.y + 1):
+		out = maxf(out, open[k])
+	return out
+
+
+## A hump, not a ramp: narrow at the tail, widest in the middle, narrowing again at
+## the blade. The fallback matches the authored curve's shape rather than the old
+## ramp's, so a missing resource degrades to something still crescent-shaped.
 func _taper(u: float) -> float:
 	if width_curve != null:
 		return width_curve.sample_baked(u)
-	return lerpf(0.26, 0.97, u)
+	return lerpf(0.05, 0.58, u) if u < 0.5 else lerpf(0.58, 0.30, (u - 0.5) * 2.0)
 
 
 ## One point on a cross-section. `v` is the band stop, 0 at the inner edge and 1 at

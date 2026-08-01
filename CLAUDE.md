@@ -232,6 +232,15 @@ A repo whose last commit is day one is the failure signature.
   through the lighting path — so an `unshaded` surface likely receives nothing. Use
   a `Sprite3D` or a flat quad with alpha scissor, as `toon_shadow_blob.tres`
   already does.
+- **Hiding a node is not enough to hide an effect.** `SwordTrail` sets
+  `visible = true` at the end of its own `_physics_process`, so setting `visible`
+  false does nothing at all — the first pose-only capture run silently produced
+  seven frames with the ribbon fully drawn. Disable `process_mode` as well.
+  Anything that asserts its own visibility per-frame needs the same treatment.
+- **An `OmniLight3D` counts as an effect node.** Hiding the charge glow changes the
+  lit grass around the player, so an effects-on/effects-off pixel difference
+  includes light, not just geometry. Worth knowing before trusting such a diff as a
+  measure of "effect footprint".
 - `.tscn` and `.tres` files **do** accept `;` comments, which is the only way to
   leave a note on hand-authored scene wiring.
 - **An `AnimationNodeStateMachine` will not *start* a travel while the current state
@@ -324,9 +333,35 @@ to the code. Each of these failed a round before it was understood.
   highest-contrast, most heavily outlined region of every frame, and fights
   happen in a flat low-contrast green field below it. The eye goes to scenery.
   Unresolved — a lighting/composition pass owes this an answer.
+- **Shape carries motion; the outline cannot.** The hardest-won lesson here. An
+  un-outlined effect reads as a *rendering artefact*, and an outlined, opaque,
+  hard-edged one reads as a *solid prop* — two critics, two rounds, both correct.
+  In this art direction the black contour **is** the signifier of solidity, so
+  there is no outline setting that fixes it. Effects must be shaped like motion:
+  tapered to points at both ends, curved, no straight terminating edges. A flat
+  quad with hard corners reads as a playing card no matter what colour it is.
+- **The pose has to carry the read; the VFX is support.** The only frame a critic
+  ever praised was the one where the *character's* body language was unambiguous
+  and the effect was secondary. Its verdict is worth keeping verbatim: *"legibility
+  and correctness are inversely correlated — the effects you can't miss are the
+  ones that read as objects; the one that reads as a genuine action is carried by
+  the pose."* Test it directly: capture with effects hidden
+  (`tools/shots/poseonly.json`) and see whether the pose alone still reads.
+- **Torso roll is the cheapest silhouette channel this rig has.** On a box torso
+  seen from behind, yaw is nearly invisible and pitch reads weakly, but roll tilts
+  the whole white mass, the head knob and both arms off vertical at once. Roll the
+  **torso**, not the root — rolling the root drives a foot into the ground.
+- **A slash's contact frame cannot get the blade clear of the body, and this is
+  arithmetic, not art.** The hitbox has to reach 1.25 m in front at chest height;
+  the blade is 1.2 m grip-to-tip and the hand travels at most 0.52 m from the
+  shoulder, so the blade's midpoint must come within 0.86 m of the target. Rolling
+  the body the other way to throw the arm outboard *gains* clearance and **loses
+  the hit entirely** — measured reach 1.30 m at every live frame, damage 0, tip
+  driven underground. Do not re-litigate this; the numbers are in
+  `tools/build_combat_anims.gd`.
 - **The character's head sits above the torso with a visible gap**, so it reads as
   floating on a stalk rather than as a style choice. Spotted independently by a
-  critic and by a capture review.
+  critic and by a capture review. *(Fixed: it was the antenna knob, not a head.)*
 
 ## Layout
 

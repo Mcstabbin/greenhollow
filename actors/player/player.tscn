@@ -110,25 +110,24 @@ disable_receive_shadows = true
 ; How much of the ribbon's full width is open along its length: 0 is the tail, 1 the
 ; newest sample at the blade. Without a taper the ribbon is a parallelogram.
 ;
-; sword_trail.gd takes the width INWARD from a fixed outer edge, so this curve also
-; decides how much of a swept circle stays hollow — which is why the tail is 0.26 where
-; the old symmetric model needed 0.4. Under that model a thin tail was a thin sliver at
-; the SHOULDER, inside the silhouette, and it cost slash_b's first live frame; taken
-; inward from the leading arc the same fraction sits at the tip's radius instead, well
-; outside the body, so it is both smaller and more visible. The full span is 1.80 blade
-; lengths, i.e. 1.66 m, so the tail is 0.43 m and the head 1.61 m — roughly 21 and 78 px
-; at the capture size. A band, not a scratch.
+; A HUMP, not a ramp, and that inversion is the shape half of the "reads as a prop"
+; fix. It used to run 0.26 -> 0.58 -> 0.97, so the WIDEST cross-section was the newest
+; one: a full-width radial line 1.75 blade lengths (1.47 m, about 78 px at the capture
+; size) standing at the blade, with the shape narrowing to a point at the tail behind
+; it. That is a cone, and a blind critic named it as one — "no taper toward a start or
+; end, no falloff", "a hard straight edge at its wide end", "a traffic cone", "a
+; sombrero brim". Widest in the middle and narrow at both ends is a crescent, and a
+; crescent has two points and no flat end.
 ;
-; These three numbers were settled by measurement, not taste. The ribbon's screen
-; footprint was counted by capturing the same frozen frame with the trail shown and
-; hidden and differencing: against the old fan it is 14% smaller on the spin and 12%
-; smaller on a slash. A more aggressive curve (0.24 / 0.54 / 0.92) reached 17-19% and
-; was rejected — it left slash_b's first live frame, the one a chest already eats, with
-; a single sliver where this keeps two. Structure is what the critic was complaining
-; about, and structure is carried by the hollow centre and the gaps; area is secondary,
-; and legibility is not negotiable.
+; Sizes, with sword_trail.gd's outer_reach at 0.60 so the full span is 1.65 blade
+; lengths = 1.39 m: tail 0.07 m, middle 0.81 m, blade end 0.42 m — roughly 4, 38 and
+; 20 px at 640. The widest part of the ribbon is now 45% narrower than the old widest
+; part, and it sits behind the blade rather than on it, which is where a smear belongs.
+; sword_trail.gd then feathers every gap-facing end to a point on top of this, so no
+; piece of the ribbon has a straight edge except the one cross-section that touches the
+; blade.
 [sub_resource type="Curve" id="Curve_trail_width"]
-_data = [Vector2(0, 0.26), 0.0, 0.0, 0, 0, Vector2(0.5, 0.58), 0.0, 0.0, 0, 0, Vector2(1, 0.97), 0.0, 0.0, 0, 0]
+_data = [Vector2(0, 0.05), 0.0, 0.0, 0, 0, Vector2(0.5, 0.58), 0.0, 0.0, 0, 0, Vector2(1, 0.3), 0.0, 0.0, 0, 0]
 point_count = 3
 
 ; `rings` is the subdivision of the MAIN circle and `ring_segments` the tube's
@@ -144,18 +143,28 @@ ring_segments = 6
 ; core/mid/rim ramp so the spin's ground footprint and its arc read as one effect. A
 ; single mid-value albedo (the old Color(1, 0.5, 0.08) is 0.58 luminance against
 ; 0.47 grass) borrows its contrast from the background; a near-white core between dark
-; rims carries its own. Unbroken — `segment_fill` 1.0 — because the footprint is a
-; claim about reach and a dotted line is a weaker claim.
+; rims carries its own.
+;
+; No longer unbroken, and the previous note here — "the footprint is a claim about reach
+; and a dotted line is a weaker claim" — was answered by a critic asked a sharper
+; question. Shown this frame and asked whether the effect read as motion or as an
+; object, it said: "a tyre lying on the ground ... pale peach interior with a dark brown
+; outer rim. A trail does not have a lit inside face and a shaded rim." A continuous
+; bevelled band IS a solid of revolution, and no amount of colour fixes that. Five
+; arcs, pointed at both ends by the shader's `arc_taper`, and a rim thinned from 44% of
+; the half-width to 22% so it reads as an edge rather than as a shaded face. The claim
+; about reach is made by the arcs' radius, which has not changed.
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_spin_ring"]
 resource_name = "spin_ring"
 shader = ExtResource("21_groundring")
 shader_parameter/core_colour = Color(1, 0.86, 0.62, 1)
 shader_parameter/rim_colour = Color(0.3, 0.1, 0.03, 1)
 shader_parameter/ring_radius = 0.88
-shader_parameter/tube_radius = 0.12
-shader_parameter/core_width = 0.56
-shader_parameter/segments = 1.0
-shader_parameter/segment_fill = 1.0
+shader_parameter/tube_radius = 0.075
+shader_parameter/core_width = 0.78
+shader_parameter/segments = 5.0
+shader_parameter/segment_fill = 0.78
+shader_parameter/arc_taper = 1.0
 
 ; The charge tell's ground ring. Authored at radius 1 so the script's scale IS the
 ; radius. Thicker in section than it was (tube 0.16, not 0.11) because it has to hold
@@ -193,6 +202,14 @@ ring_segments = 6
 ; right, a closed circle around a character IS a reticle. Arcs converging inward are
 ; not.
 ;
+; But square-ended arcs are, in a critic's words, "a ring of paving slabs" and "curved
+; paving slabs / a small stone circle you are standing in" — and that reading is fair:
+; a constant-width arc with flat ends and a bevelled rim is exactly how this world draws
+; a piece of stonework. `arc_taper` points each arc at both ends, and the rim is thinned
+; from 40% of the half-width to 24% so it reads as a contour rather than as a shaded
+; face. Five arcs rather than seven, so each one is long enough for the taper to be a
+; taper instead of a diamond.
+;
 ; Still cyan-family: cyan means "charged" here and orange means "swinging", so the two
 ; states can never be confused with each other.
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_charge_ring"]
@@ -201,10 +218,11 @@ shader = ExtResource("21_groundring")
 shader_parameter/core_colour = Color(0.82, 1, 1, 1)
 shader_parameter/rim_colour = Color(0.02, 0.15, 0.21, 1)
 shader_parameter/ring_radius = 0.84
-shader_parameter/tube_radius = 0.16
-shader_parameter/core_width = 0.6
-shader_parameter/segments = 7.0
-shader_parameter/segment_fill = 0.72
+shader_parameter/tube_radius = 0.105
+shader_parameter/core_width = 0.76
+shader_parameter/segments = 4.0
+shader_parameter/segment_fill = 0.8
+shader_parameter/arc_taper = 1.0
 
 [sub_resource type="AnimationNodeAnimation" id="anim_idle"]
 animation = &"idle"

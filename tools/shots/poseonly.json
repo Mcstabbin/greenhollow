@@ -1,0 +1,334 @@
+{
+  "_comment": "POSE-ONLY variant of legibility.json: the identical fourteen frames with every VFX node switched off (hide_effects). This is PRIOR-ART-VISUAL.md's \"hide the body, keep only the weapon\" test run the other way round \u2014 hide the effects and keep the pose. A blind critic said six of seven effects read as props and that the one frame that worked was carried by the character: \"the sword raised vertically overhead is unambiguous body language, and the ring is a secondary decoration. This is the model to follow.\" So the animation has to survive on its own, and this set is how that is checked rather than asserted. Kept in step with legibility.json by construction: same positions, same camera, same capture_when, same expectations.",
+  "shots": [
+    {
+      "_note": "CONTROL for this position. Waits until the player genuinely IS idle rather than assuming a frame count, so a shot that inherited a fall or a slide self-corrects instead of quietly captioning a walk cycle as idle.",
+      "name": "pair1_idle",
+      "player_position": [
+        16,
+        0.3,
+        -2
+      ],
+      "camera_yaw_deg": 0,
+      "warmup_frames": 60,
+      "capture_when": {
+        "state": "Idle",
+        "clip": "idle"
+      },
+      "capture_offset": 4,
+      "expect_state": "Idle",
+      "expect_clip": "idle",
+      "lock_camera": true,
+      "hide_effects": true
+    },
+    {
+      "_note": "slash_a wind-up: blade cocked above the shoulder.",
+      "name": "pair1_action",
+      "player_position": [
+        16,
+        0.3,
+        -2
+      ],
+      "camera_yaw_deg": 0,
+      "warmup_frames": 50,
+      "inputs": [
+        {
+          "action": "attack",
+          "press_at": 1,
+          "release_at": 3
+        }
+      ],
+      "capture_when": {
+        "clip": "slash_a"
+      },
+      "expect_state": "Attack",
+      "expect_clip": "slash_a",
+      "lock_camera": true,
+      "hide_effects": true
+    },
+    {
+      "_note": "CONTROL for this position. Waits until the player genuinely IS idle rather than assuming a frame count, so a shot that inherited a fall or a slide self-corrects instead of quietly captioning a walk cycle as idle.",
+      "name": "pair2_idle",
+      "player_position": [
+        2.5,
+        0.3,
+        12.5
+      ],
+      "camera_yaw_deg": 0,
+      "warmup_frames": 60,
+      "capture_when": {
+        "state": "Idle",
+        "clip": "idle"
+      },
+      "capture_offset": 4,
+      "expect_state": "Idle",
+      "expect_clip": "idle",
+      "lock_camera": true,
+      "hide_effects": true
+    },
+    {
+      "_note": "slash_a with the hitbox live.",
+      "name": "pair2_action",
+      "player_position": [
+        2.5,
+        0.3,
+        12.5
+      ],
+      "camera_yaw_deg": 0,
+      "warmup_frames": 50,
+      "inputs": [
+        {
+          "action": "attack",
+          "press_at": 1,
+          "release_at": 3
+        }
+      ],
+      "capture_when": {
+        "clip": "slash_a",
+        "live": true
+      },
+      "expect_state": "Attack",
+      "expect_clip": "slash_a",
+      "expect_live": true,
+      "lock_camera": true,
+      "hide_effects": true
+    },
+    {
+      "_note": "CONTROL for this position. Waits until the player genuinely IS idle rather than assuming a frame count, so a shot that inherited a fall or a slide self-corrects instead of quietly captioning a walk cycle as idle.",
+      "name": "pair3_idle",
+      "player_position": [
+        0,
+        0.3,
+        6
+      ],
+      "camera_yaw_deg": 0,
+      "warmup_frames": 60,
+      "capture_when": {
+        "state": "Idle",
+        "clip": "idle"
+      },
+      "capture_offset": 4,
+      "expect_state": "Idle",
+      "expect_clip": "idle",
+      "lock_camera": true,
+      "hide_effects": true
+    },
+    {
+      "_note": "slash_a late in the live window - flagged marginal by its own builder, and the frame this test exists to settle.",
+      "name": "pair3_action",
+      "player_position": [
+        0,
+        0.3,
+        6
+      ],
+      "camera_yaw_deg": 0,
+      "warmup_frames": 50,
+      "inputs": [
+        {
+          "action": "attack",
+          "press_at": 1,
+          "release_at": 3
+        }
+      ],
+      "capture_when": {
+        "clip": "slash_a",
+        "live": true
+      },
+      "capture_offset": 4,
+      "expect_state": "Attack",
+      "expect_clip": "slash_a",
+      "lock_camera": true,
+      "hide_effects": true
+    },
+    {
+      "_note": "CONTROL for this position. Waits until the player genuinely IS idle rather than assuming a frame count, so a shot that inherited a fall or a slide self-corrects instead of quietly captioning a walk cycle as idle.",
+      "name": "pair4_idle",
+      "player_position": [
+        8,
+        0.3,
+        8
+      ],
+      "camera_yaw_deg": 0,
+      "warmup_frames": 60,
+      "capture_when": {
+        "state": "Idle",
+        "clip": "idle"
+      },
+      "capture_offset": 4,
+      "expect_state": "Idle",
+      "expect_clip": "idle",
+      "lock_camera": true,
+      "hide_effects": true
+    },
+    {
+      "_note": "slash_b live, the chained follow-up. Opposite screen direction to slash_a.",
+      "name": "pair4_action",
+      "player_position": [
+        8,
+        0.3,
+        8
+      ],
+      "camera_yaw_deg": 0,
+      "warmup_frames": 50,
+      "inputs": [
+        {
+          "action": "attack",
+          "press_at": 1,
+          "release_at": 3
+        },
+        {
+          "action": "attack",
+          "press_at": 8,
+          "release_at": 10
+        }
+      ],
+      "capture_when": {
+        "clip": "slash_b",
+        "live": true
+      },
+      "expect_state": "Attack",
+      "expect_clip": "slash_b",
+      "lock_camera": true,
+      "hide_effects": true
+    },
+    {
+      "_note": "CONTROL for this position. Waits until the player genuinely IS idle rather than assuming a frame count, so a shot that inherited a fall or a slide self-corrects instead of quietly captioning a walk cycle as idle.",
+      "name": "pair5_idle",
+      "player_position": [
+        16,
+        0.3,
+        6
+      ],
+      "camera_yaw_deg": 0,
+      "warmup_frames": 60,
+      "capture_when": {
+        "state": "Idle",
+        "clip": "idle"
+      },
+      "capture_offset": 4,
+      "expect_state": "Idle",
+      "expect_clip": "idle",
+      "lock_camera": true,
+      "hide_effects": true
+    },
+    {
+      "_note": "Charge held past the 1067 ms threshold. This was the weakest frame in the set and the only low-confidence call a critic made: charging runs inside the Idle state, so the pose WAS the idle pose and the only differences were the blade's colour and a soft ground glow \u2014 'if the glow had been absent I would have called it IDLE with confidence 5 and been wrong'. There are now two hard-edged cues: a held anticipation pose (the `charge` clip, which is why expect_clip is no longer `idle`) and an outlined teal ground ring that closes inward. capture_offset waits 8 frames so the ring has finished converging \u2014 the charge is a HELD state, so any frame of it is representative, and the first frame of a 110 ms convergence is the least so.",
+      "name": "pair5_action",
+      "player_position": [
+        16,
+        0.3,
+        6
+      ],
+      "camera_yaw_deg": 0,
+      "warmup_frames": 50,
+      "inputs": [
+        {
+          "action": "attack",
+          "press_at": 1
+        }
+      ],
+      "capture_when": {
+        "charged": true
+      },
+      "capture_offset": 8,
+      "expect_state": "Idle",
+      "expect_clip": "charge",
+      "lock_camera": true,
+      "hide_effects": true
+    },
+    {
+      "_note": "CONTROL for this position. Waits until the player genuinely IS idle rather than assuming a frame count, so a shot that inherited a fall or a slide self-corrects instead of quietly captioning a walk cycle as idle.",
+      "name": "pair6_idle",
+      "player_position": [
+        6,
+        0.3,
+        -6
+      ],
+      "camera_yaw_deg": 0,
+      "warmup_frames": 60,
+      "capture_when": {
+        "state": "Idle",
+        "clip": "idle"
+      },
+      "capture_offset": 4,
+      "expect_state": "Idle",
+      "expect_clip": "idle",
+      "lock_camera": true,
+      "hide_effects": true
+    },
+    {
+      "_note": "Spin, ring at radius.",
+      "name": "pair6_action",
+      "player_position": [
+        6,
+        0.3,
+        -6
+      ],
+      "camera_yaw_deg": 0,
+      "warmup_frames": 50,
+      "inputs": [
+        {
+          "action": "attack",
+          "press_at": 1,
+          "release_at": 66
+        }
+      ],
+      "capture_when": {
+        "clip": "spin_attack",
+        "live": true
+      },
+      "capture_offset": 6,
+      "expect_state": "Attack",
+      "expect_clip": "spin_attack",
+      "lock_camera": true,
+      "hide_effects": true
+    },
+    {
+      "_note": "CONTROL for this position. Waits until the player genuinely IS idle rather than assuming a frame count, so a shot that inherited a fall or a slide self-corrects instead of quietly captioning a walk cycle as idle.",
+      "name": "pair7_idle",
+      "player_position": [
+        11,
+        0.3,
+        -6.5
+      ],
+      "camera_yaw_deg": 0,
+      "warmup_frames": 60,
+      "capture_when": {
+        "state": "Idle",
+        "clip": "idle"
+      },
+      "capture_offset": 4,
+      "expect_state": "Idle",
+      "expect_clip": "idle",
+      "lock_camera": true,
+      "hide_effects": true
+    },
+    {
+      "_note": "REGRESSION COVER for a rendering fault, not just another action frame. A spin on the river bank, where the expanding ground ring grows out over the water. A critic reported 'three or four thin black concentric arcs on the water surface with nothing inside them ... nobody would think spin attack; they would think the water is broken', and it was this: the ring is OPAQUE so it writes depth, the water is blend_mix so it erases the ring's fill without writing depth, and the outline pass \u2014 which reads the pre-transparent depth buffer \u2014 contoured a shape that was no longer visible. Diagnosed by freezing the frame and hiding one node at a time; with the ring hidden every arc vanished. actors/player/water_line.gd holds the fix and the full write-up. This pair exists so the fault cannot come back unnoticed: pair6 happens to be waterside too, but one position is a coincidence, two is coverage. The bank here sits BELOW the river surface, which is exactly the case a constant height offset cannot handle.",
+      "name": "pair7_action",
+      "player_position": [
+        11,
+        0.3,
+        -6.5
+      ],
+      "camera_yaw_deg": 0,
+      "warmup_frames": 50,
+      "inputs": [
+        {
+          "action": "attack",
+          "press_at": 1,
+          "release_at": 66
+        }
+      ],
+      "capture_when": {
+        "clip": "spin_attack",
+        "live": true
+      },
+      "capture_offset": 12,
+      "expect_state": "Attack",
+      "expect_clip": "spin_attack",
+      "lock_camera": true,
+      "hide_effects": true
+    }
+  ]
+}
