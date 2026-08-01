@@ -1,0 +1,46 @@
+{
+  "_comment": "Baseline shots of level one. Compare against refs/oot/forest_establishing_*.png — composition, fog depth, canopy light, how a wooded bowl is framed. Positions are metres; the play area is +/-24 and the player spawns at (2.5, 0.3, 12.5).",
+  "shots": [
+    {
+      "name": "spawn_north",
+      "player_position": [2.5, 0.3, 12.5],
+      "camera_yaw_deg": 0,
+      "camera_pitch_deg": -12,
+      "warmup_frames": 60,
+      "capture_at": 8
+    },
+    {
+      "name": "spawn_east",
+      "player_position": [2.5, 0.3, 12.5],
+      "camera_yaw_deg": 90,
+      "camera_pitch_deg": -12,
+      "warmup_frames": 45,
+      "capture_at": 8
+    },
+    {
+      "name": "spawn_south",
+      "player_position": [2.5, 0.3, 12.5],
+      "camera_yaw_deg": 180,
+      "camera_pitch_deg": -12,
+      "warmup_frames": 45,
+      "capture_at": 8
+    },
+    {
+      "name": "spawn_west",
+      "player_position": [2.5, 0.3, 12.5],
+      "camera_yaw_deg": 270,
+      "camera_pitch_deg": -12,
+      "warmup_frames": 45,
+      "capture_at": 8
+    },
+    {
+      "name": "walking_midstride",
+      "player_position": [2.5, 0.3, 12.5],
+      "camera_yaw_deg": 200,
+      "camera_pitch_deg": -14,
+      "warmup_frames": 45,
+      "inputs": [{ "action": "move_forward", "press_at": 1 }],
+      "capture_at": 50
+    }
+  ]
+}

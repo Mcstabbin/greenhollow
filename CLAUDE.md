@@ -83,6 +83,12 @@ multiplayer, no database, no accounts.
 Hand-authored `.tscn` and shader code is easy to get subtly wrong. Every visual
 or behavioural change gets checked by actually running the engine.
 
+The engine is **not on PATH**:
+
+```bash
+GODOT="C:/tools/godot/Godot_v4.7.1-stable_win64_console.exe"   # _console, or stdout is swallowed
+```
+
 - **Behaviour** — a throwaway test driven with `Input.action_press`, run
   **headless**. Headless is mandatory: a windowed run captures the real mouse and
   silently rotates the camera mid-test.
@@ -101,6 +107,18 @@ or behavioural change gets checked by actually running the engine.
   tree for real positions and sizes.
 
 Delete throwaway scripts when done, along with their orphaned `.uid` files.
+
+Two exceptions, both **permanent** and both committed — in Godot there is no way
+to press a button or render a frame from outside the engine, so these are the
+tooling the rest of Rule 3 assumes:
+
+- `tools/probe.tscn` — headless, scene-based, drives input and prints measured
+  numbers as JSON. `--suite=<name>`.
+- `tools/capture.tscn` — windowed, releases the mouse so the real cursor cannot
+  rotate the camera, saves PNGs from a JSON shot list. `--shots=<name>`.
+
+Both are used by the `/gauntlet` skill (`.claude/skills/gauntlet/`), which runs
+quality loops against a shipped-game bar.
 
 ## Rule 4: Commit every session
 

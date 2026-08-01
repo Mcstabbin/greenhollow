@@ -8,6 +8,13 @@
 *.pck
 *.zip
 
+# Reference frames for the gauntlet loop — never committed.
+# Captured from legally owned copies, read only by critic subagents.
+/refs/
+
+# Loop output — regenerated every round.
+/tools/out/
+
 # OS cruft
 desktop.ini
 Thumbs.db
