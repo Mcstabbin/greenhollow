@@ -364,6 +364,17 @@ to the code. Each of these failed a round before it was understood.
   measure `nd` 1.29–1.33 while the character's own creases have a median `nd` of
   1.39. Same magnitude, so any threshold that kills one kills the other. The real
   fix is smoothing the terrain mesh's vertex normals, which is a level change.
+- **The value structure is inverted, and this is now the live art problem.**
+  Measured albedo luminance: outline **0.05** · grass **0.47** · **tunic 0.49** ·
+  stone 0.64 · **foliage 0.67** · sky top 0.55 · **sky horizon 0.91**. The player
+  and the ground are the same value *and* the same hue, and the two brightest
+  things on screen are both background. The rule is the opposite — the focal point
+  holds the highest contrast while background sits mid-to-dark. Consequences seen
+  repeatedly: anything mid-value placed on grass disappears (which is why the
+  charge tell had to be fixed on value, not hue), and now that the outline is
+  depth-attenuated the distant trees are low-contrast against a 0.91 sky. **Judge
+  every effect in greyscale** — it tells you immediately whether a dark edge is
+  doing its job.
 - **Shape carries motion; the outline cannot.** The hardest-won lesson here. An
   un-outlined effect reads as a *rendering artefact*, and an outlined, opaque,
   hard-edged one reads as a *solid prop* — two critics, two rounds, both correct.
