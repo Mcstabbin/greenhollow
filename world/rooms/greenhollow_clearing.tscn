@@ -9861,7 +9861,7 @@ chest_id = "lookout_key"
 ; One chest gives one item, because Interactable.one_shot is what makes a chest a chest.
 ; The other three arrive as more chests, or immediately via the F4 debug cycle.
 [node name="Chest_weapons" type="Area3D" parent="World/Gameplay"]
-transform = Transform3D(0.9, 0, -0.4358899, 0, 1, 0, 0.4358899, 0, 0.9, 6, 0, 11.5)
+transform = Transform3D(0.9, 0, -0.4358899, 0, 1, 0, 0.4358899, 0, 0.9, 9, 0, 14)
 script = ExtResource("7_hx10c")
 contains = Array[ItemData]([ExtResource("18_axe"), ExtResource("19_bow"), ExtResource("20_shield")])
 chest_id = "village_weapons"

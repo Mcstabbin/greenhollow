@@ -9,8 +9,10 @@ extends PlayerLocomotionState
 func next_state(on_floor: bool) -> PlayerState:
 	if not on_floor:
 		return air_state
+	if block_requested():
+		return block_state
 	if attack_requested():
-		return attack_state
+		return attack_target()
 	if player.get_horizontal_speed() <= player.walk_anim_threshold:
 		return idle_state
 	return null

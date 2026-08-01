@@ -1,0 +1,115 @@
+[gd_resource type="Resource" script_class="MeleeWeapon" load_steps=11 format=3]
+
+; THE AXE IS NUMBERS. No branch anywhere in actors/player/ mentions it, and that is the
+; result this file exists to demonstrate — PRIOR-ART.md's items pass says outright that
+; if a heavy weapon needs a code path, the data model has failed.
+;
+; What makes it possible: the project has three hand-authored attack clips whose timing
+; windows are AnimationPlayer method tracks, and method tracks fire on CLIP time. So a
+; weapon does not need its own keyframes to be slower — it needs the same clip played
+; slower. items/attack_step.gd derives that playback rate from ms_windup against the
+; clip's own authored key, so ONE authored number moves the wind-up, the live window and
+; the commitment out together, in proportion. Which is what "heavier" means.
+;
+; The rate here works out at 5/8 = 0.625 for the slashes. Everything else follows from
+; it and is stated below so the data cannot quietly disagree with the game:
+;
+;   wind-up      authored frame 5  ->  ceil(5 / 0.625) = 8, +3 latency = 11f = 183 ms
+;   live window  frames 5..11      ->  6 / 0.625 = 9.6 -> 10f = 167 ms
+;   commitment   cancel at 21      ->  ceil(21 / 0.625) = 34, +3, +1 = 38f = 633 ms
+;
+; 633 ms is outside REFERENCE.md's 300-500 ms band and that is deliberate, not an
+; oversight: the band describes a LIGHT attack. The sword already sits at 417, near its
+; top, so no uniform slowdown can be both meaningfully heavier and inside it. A
+; two-handed axe that commits you for two thirds of a second is the trade the weapon is
+; for, and the cancel window is unchanged at the last 37.5% of recovery so the escape
+; hatch scales with it.
+;
+; The rest is what a heavy weapon should also be: twice the damage on the opener, three
+; on the follow-through (per-step damage is exactly what PRIOR-ART.md's engine-demo
+; finding buys), double the knockback, half again the hitstop, a hitbox matched to the
+; head rather than the haft, and a longer, deeper ribbon.
+
+[ext_resource type="Script" path="res://items/melee_weapon.gd" id="1_melee"]
+[ext_resource type="Script" path="res://items/attack_step.gd" id="2_step"]
+[ext_resource type="Script" path="res://addons/health_hitbox_hurtbox/resources/health_action.gd" id="3_action"]
+[ext_resource type="PackedScene" path="res://items/weapons/axe.tscn" id="4_scene"]
+
+[sub_resource type="Resource" id="Action_open"]
+script = ExtResource("3_action")
+affect = 1
+type = 2
+amount = 2
+
+; The follow-through hits harder than the opener. This is the whole payoff of holding a
+; combo as an array of steps rather than as one damage number on the weapon.
+[sub_resource type="Resource" id="Action_finish"]
+script = ExtResource("3_action")
+affect = 1
+type = 2
+amount = 3
+
+[sub_resource type="Resource" id="Action_spin"]
+script = ExtResource("3_action")
+affect = 1
+type = 2
+amount = 4
+
+[sub_resource type="Resource" id="Step_chop_a"]
+script = ExtResource("2_step")
+clip = &"slash_a"
+actions = Array[HealthAction]([SubResource("Action_open")])
+ms_windup = 183
+ms_active = 167
+ms_commitment = 633
+cancel_window = 0.375
+knockback = 1.2
+ms_hitstop = 120
+
+[sub_resource type="Resource" id="Step_chop_b"]
+script = ExtResource("2_step")
+clip = &"slash_b"
+actions = Array[HealthAction]([SubResource("Action_finish")])
+ms_windup = 183
+ms_active = 167
+ms_commitment = 633
+cancel_window = 0.375
+knockback = 1.4
+ms_hitstop = 140
+
+; The heavy spin. Rate 7/11 = 0.636 here, because the spin's authored key is at frame 7
+; and whole frames are what keep a playback rate exact: 233 ms tell, 483 ms live,
+; 1017 ms commit. A full second of commitment is a lot, and it is the correct amount for
+; four damage in a circle around you.
+[sub_resource type="Resource" id="Step_spin"]
+script = ExtResource("2_step")
+clip = &"spin_attack"
+actions = Array[HealthAction]([SubResource("Action_spin")])
+ms_windup = 233
+ms_active = 483
+ms_commitment = 1017
+cancel_window = 0.4
+knockback = 2.0
+ms_hitstop = 160
+
+[resource]
+script = ExtResource("1_melee")
+id = &"axe"
+display_name = "Woodcutter's Axe"
+found_text = "The woodcutter's axe.  Slower, and it does not care."
+hand = 0
+scene = ExtResource("4_scene")
+steps = Array[AttackStep]([SubResource("Step_chop_a"), SubResource("Step_chop_b")])
+charged = SubResource("Step_spin")
+; Measures 1266.7 ms, the next 60 Hz tick — the same quantisation the sword's 1050 pays to
+; land on 1066.7. Both are inside REFERENCE.md's 900-1300 ms band.
+ms_charge = 1250
+; The head's outer wedge, not a blade: it is the part of the silhouette a viewer reads,
+; and on the axe that is 14 cm off the haft's axis.
+hot_mesh = &"HeadEdge"
+hitbox_radius = 0.2
+hitbox_height = 0.5
+; Deeper and hotter than the sword's, still inside the one hue this world leaves free.
+; A different colour would break the "orange means a blade is live" vocabulary.
+trail_tint = Color(1, 0.3, 0.02, 1)
+ms_trail = 267

@@ -12,6 +12,10 @@ extends PlayerState
 
 ## Where an attack press sends us. Left unset on states that cannot attack.
 @export var attack_state: PlayerState
+## Where a bow's draw and a shield's guard send us. Left unset on Air for the same reason
+## `attack_state` is: committing to either while falling is worse than not being able to.
+@export var aim_state: PlayerState
+@export var block_state: PlayerState
 
 
 ## Runs the shared locomotion tick, then asks the subclass where to go next.
@@ -30,9 +34,32 @@ func physics_update(delta: float, on_floor: bool) -> PlayerState:
 
 
 ## Grounded states share one attack check: a buffered press, or a charged
-## release, opens the Attack state.
+## release, opens whichever state the held item calls for.
 func attack_requested() -> bool:
-	return attack_state != null and player.has_attack_request()
+	return attack_target() != null and player.has_attack_request()
+
+
+## Which state an attack press opens, decided by WHAT IS IN YOUR HAND. The question is
+## asked of the item — `is_ranged()`, `is_melee()` — rather than of its id, so a fifth
+## weapon is a `.tres` file and not an edit here. Null means the press does nothing,
+## which is the correct and knowingly-accepted answer while holding the shield.
+func attack_target() -> PlayerState:
+	var item := player.loadout.equipped
+	if item == null:
+		return null
+	if item.is_ranged():
+		return aim_state
+	if item.is_melee():
+		return attack_state
+	return null
+
+
+## The guard. A held button rather than a buffered press, because a shield goes up for as
+## long as you hold it and there is nothing to be forgiving about.
+func block_requested() -> bool:
+	var item := player.loadout.equipped
+	return (block_state != null and item != null and item.is_shield()
+		and Input.is_action_pressed("shield"))
 
 
 func next_state(_on_floor: bool) -> PlayerState:

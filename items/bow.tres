@@ -1,0 +1,41 @@
+[gd_resource type="Resource" script_class="RangedWeapon" load_steps=4 format=3]
+
+; The bow, and the only one of the four that is a new subsystem rather than new numbers.
+;
+; ms_draw is 500, which is well below REFERENCE.md's 900-1300 ms charged-attack band,
+; and that is a considered deviation rather than a missed target. The band is for a
+; charged MELEE attack, where the long hold is what buys a much bigger swing; a bow's
+; hold buys range and accuracy, it is the weapon's normal operating mode rather than a
+; special case, and half a second is where the genre puts it. A 1.1-second draw would
+; make the bow feel like a siege engine.
+;
+; min_power 0.35 means a panic shot at the instant of nocking still leaves the string —
+; it just does 1 damage instead of 2 and travels the same distance. Tapping is never
+; optimal and never useless, which is the shape a forgiving weapon wants.
+
+[ext_resource type="Script" path="res://items/ranged_weapon.gd" id="1_ranged"]
+[ext_resource type="PackedScene" path="res://items/weapons/bow.tscn" id="2_scene"]
+[ext_resource type="PackedScene" path="res://items/arrow.tscn" id="3_arrow"]
+
+[resource]
+script = ExtResource("1_ranged")
+id = &"bow"
+display_name = "Hunter's Bow"
+found_text = "A bow, and a quiver.  Hold to draw, release to loose."
+hand = 0
+scene = ExtResource("2_scene")
+ms_draw = 500
+min_power = 0.35
+damage = 2
+projectile = ExtResource("3_arrow")
+; 34 m/s crosses the 24 m clearing in seven tenths of a second: fast enough to feel like
+; a bow, slow enough that the arrow is a visible object rather than a hitscan.
+projectile_speed = 34.0
+projectile_lifetime = 4.0
+max_ammo = 30
+start_ammo = 15
+; There is no lock-on system yet, so this is dormant by design and the fallback — aim
+; where the character faces — is the whole of the aiming today. The assist is wired and
+; measured so that landing lock-on is a connection rather than a feature.
+lockon_assist = 0.85
+assist_range = 12.0

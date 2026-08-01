@@ -1,0 +1,82 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://items/arrow.gd" id="1_arrow"]
+[ext_resource type="Material" path="res://art/materials/toon_wood.tres" id="2_wood"]
+
+; Authored down -Z, because that is the axis Node3D.look_at aims and the arrow orients
+; itself along its own travel every tick. 0.9 m end to end on a 2.2 m character.
+;
+; NOT parented into the character while nocked: Rig/Character is scaled x2, so an arrow
+; hanging under the grip would be drawn at 1.8 m. PlayerAimState keeps it as a child of
+; the Player and writes its global transform each tick instead.
+[sub_resource type="BoxMesh" id="BoxMesh_shaft"]
+size = Vector3(0.028, 0.028, 0.78)
+
+; A tapered head rather than a box: it is the end a viewer looks at, and four facets
+; converging is what says "arrow" instead of "stick".
+[sub_resource type="CylinderMesh" id="CylinderMesh_head"]
+top_radius = 0.0
+bottom_radius = 0.05
+height = 0.16
+radial_segments = 4
+rings = 1
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_head"]
+resource_name = "arrow_head"
+albedo_color = Color(0.42, 0.5, 0.66, 1)
+roughness = 0.6
+diffuse_mode = 3
+specular_mode = 1
+
+; Hot orange, the same off-palette hue the trail uses, and for the same reason:
+; Greenhollow is green grass, green canopy, white torso and pale sky, so orange is the
+; one hue nothing here competes with. The fletching is the only part of a 3 cm shaft
+; big enough to carry a colour, and it is what makes a shot in flight findable.
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_fletch"]
+resource_name = "arrow_fletch"
+albedo_color = Color(1, 0.44, 0.04, 1)
+roughness = 1.0
+diffuse_mode = 3
+specular_mode = 1
+
+[sub_resource type="BoxMesh" id="BoxMesh_fletch"]
+size = Vector3(0.012, 0.11, 0.16)
+
+; A sphere at the HEAD, not a capsule along the shaft. What hits is the point, and a
+; capsule the length of the arrow would register a target the tail happened to pass.
+[sub_resource type="SphereShape3D" id="SphereShape3D_tip"]
+radius = 0.1
+
+[node name="Arrow" type="Area3D" groups=["arrow"]]
+collision_layer = 16
+collision_mask = 32
+monitoring = false
+script = ExtResource("1_arrow")
+
+[node name="Shaft" type="MeshInstance3D" parent="."]
+cast_shadow = 0
+mesh = SubResource("BoxMesh_shaft")
+material_override = ExtResource("2_wood")
+
+[node name="Head" type="MeshInstance3D" parent="."]
+; Row-major in .tscn text: the cylinder's +Y (its tip, top_radius 0) is mapped onto -Z.
+transform = Transform3D(1, 0, 0, 0, 0, 1, 0, -1, 0, 0, 0, -0.45)
+cast_shadow = 0
+mesh = SubResource("CylinderMesh_head")
+material_override = SubResource("StandardMaterial3D_head")
+
+[node name="FletchA" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, 0.33)
+cast_shadow = 0
+mesh = SubResource("BoxMesh_fletch")
+material_override = SubResource("StandardMaterial3D_fletch")
+
+[node name="FletchB" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.05, 0.33)
+cast_shadow = 0
+mesh = SubResource("BoxMesh_fletch")
+material_override = SubResource("StandardMaterial3D_fletch")
+
+[node name="Shape" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.42)
+shape = SubResource("SphereShape3D_tip")

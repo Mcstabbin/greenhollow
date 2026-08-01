@@ -15,6 +15,16 @@ extends ItemData
 ## Non-zero so tapping still does something, low enough that it is never optimal.
 @export_range(0.0, 1.0) var min_power: float = 0.35
 
+## Damage of a FULL-power hit. Scaled by draw for anything less, floored at 1 so a
+## panic shot still does something.
+##
+## A plain integer rather than the `Array[HealthAction]` an AttackStep carries, and the
+## asymmetry is honest: a melee step's actions are fixed at author time, while an
+## arrow's amount is only known when the string is released. The action is built on
+## launch instead — items/arrow.gd is a `BasicHitBox3D`, so setting `amount` is what
+## writes it.
+@export var damage: int = 2
+
 ## The projectile, spawned into the level rather than parented to the player so it
 ## keeps flying if the player moves, turns, or dies.
 @export var projectile: PackedScene

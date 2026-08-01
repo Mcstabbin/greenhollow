@@ -1,0 +1,39 @@
+[gd_resource type="Resource" script_class="ShieldItem" load_steps=3 format=3]
+
+; The shield, and the item that makes the cost of a single equip slot visible: holding
+; this means holding ONLY this, so there is no attack while it is in your hand. That is
+; the chosen behaviour, knowingly.
+;
+; damage_multiplier 0.25 rather than a flat subtraction, because the vendored addon
+; already speaks in multipliers per damage type — so a shield strong against kinetic
+; damage and useless against fire is a HealthModifier away rather than a rewrite.
+;
+; block_arc_deg 140 is the number that makes it a shield rather than an aura. Measured
+; against the pose: tools/build_combat_anims.gd puts the slab above and outside the
+; right shoulder at 18 degrees off straight ahead, so a 140-degree arc covers everything
+; a viewer would agree the shield is in front of, and nothing behind the shoulder line.
+;
+; `hand` is 0, not 1, and that is deliberate honesty rather than an oversight: the
+; loadout has one slot and it is the main hand, so recording this as an off-hand item
+; would be describing a game that does not exist yet. It becomes 1 on the day there is a
+; second slot to put it in.
+
+[ext_resource type="Script" path="res://items/shield_item.gd" id="1_shield"]
+[ext_resource type="PackedScene" path="res://items/weapons/shield.tscn" id="2_scene"]
+
+[resource]
+script = ExtResource("1_shield")
+id = &"shield"
+display_name = "Oak Shield"
+found_text = "An oak shield.  Hold the right mouse button to guard."
+hand = 0
+scene = ExtResource("2_scene")
+block_arc_deg = 140.0
+damage_multiplier = 0.25
+; Deflect windows in shipped games cluster tight — Dark Souls 3 small shields are 10
+; frames, Sekiro 12 decaying to 4 under mashing. 200 ms is 12 frames, and the flat
+; cooldown is the honest first version of Sekiro's decay.
+ms_deflect_window = 200
+ms_deflect_cooldown = 400
+; Guarding costs mobility. 0.45 is a walk you can reposition with and never escape on.
+move_scale = 0.45

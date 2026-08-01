@@ -1,6 +1,6 @@
 class_name Player
 extends CharacterBody3D
-## Player controller: camera-relative movement, and the sword.
+## Player controller: camera-relative movement, and whatever is in your hand.
 ##
 ## Everything that affects how this feels is an @export. Run the game, open the
 ## remote scene tree (Debugger -> Remote), select Player, and change these live.
@@ -8,9 +8,18 @@ extends CharacterBody3D
 ## Structure, since this file no longer does everything itself:
 ##
 ##   Player            — inputs, timers, camera, and every verb the states call
+##   Loadout           — the one equip slot; the weapon's nodes arrive with the item
 ##   StateMachine      — one PlayerState Node per gameplay state
 ##     Idle / Move / Air   — share PlayerLocomotionState
-##     Attack              — the committed sword states
+##     Attack              — the committed melee states
+##     Block / Aim         — the shield and the bow
+##
+## NOTHING HERE NAMES A WEAPON. The hitbox, the trail markers, the charge glow and the
+## mesh that flashes are all looked up through the Loadout on the frame an item is
+## equipped, and the timing, damage, reach and clip of a swing all arrive as an
+## AttackStep. That is what makes the axe a `.tres` file and not a branch, and it is the
+## property to protect: the moment this file contains `if weapon.id == &"axe"`, the data
+## model has failed and the model is what wants fixing.
 ##
 ## The gameplay state machine and the AnimationTree's state machine are separate
 ## on purpose. Gameplay decides *what* the player is allowed to do; the clips
@@ -46,12 +55,14 @@ signal attack_landed(hurt_box: HurtBox3D)
 ## Fraction of horizontal control retained mid-air. 1.0 = full air control.
 @export_range(0.0, 1.0) var air_control: float = 0.6
 
-# --- Sword ---------------------------------------------------------------
-@export_group("Sword")
+# --- Weapons -------------------------------------------------------------
+@export_group("Weapons")
 ## Press attack this early and it still lands once the window opens. The combo
 ## and the cancel both read this, so one number tunes how forgiving mashing is.
 @export var attack_buffer_time: float = 0.18
-## Hold attack this long for the spin. REFERENCE.md band is 900-1300 ms.
+## Hold attack this long for the charged attack, when the equipped weapon does not say
+## otherwise. MeleeWeapon.ms_charge overrides it, so this is the fallback for a weapon
+## that forgot to set one. REFERENCE.md band is 900-1300 ms.
 @export var charge_time: float = 1.05
 ## Forward drive while the blade is live. Small, but it stops a swing reading as
 ## a character standing still waving an arm.
@@ -59,11 +70,10 @@ signal attack_landed(hurt_box: HurtBox3D)
 @export var attack_lunge_accel: float = 42.0
 ## How hard the lunge is killed during recovery.
 @export var attack_recover_friction: float = 26.0
-@export var slash_damage: int = 1
-@export var spin_damage: int = 2
-## Blade look: resting steel, flashed white while the hitbox is live, and the
-## charged tell. Assigned in player.tscn.
-@export var blade_material: Material
+## The two STATE tints, applied to whichever mesh the equipped weapon nominates as its
+## hot one (MeleeWeapon.hot_mesh). Orange means a blade is live and cyan means charged,
+## and those two meanings are fixed across every weapon — the resting look belongs to
+## the weapon and is remembered on equip.
 @export var blade_live_material: Material
 @export var blade_charged_material: Material
 
@@ -113,12 +123,8 @@ signal attack_landed(hurt_box: HurtBox3D)
 ## instanced .glb get dropped, so the combat clips do not go there.
 @onready var anim_player: AnimationPlayer = $AnimPlayer
 @onready var interact_field: Area3D = $InteractField
-# Quoted, not `$`: the hyphen in `arm-right` is not a valid identifier, so the
-# shorthand cannot express this path.
-@onready var sword: Node3D = get_node("Rig/Character/character/root/torso/arm-right/SwordGrip")
-@onready var sword_hitbox: SwordHitBox = sword.get_node("HitBox")
-@onready var blade: MeshInstance3D = sword.get_node("Blade")
-@onready var charge_glow: OmniLight3D = sword.get_node("ChargeGlow")
+## The one equip slot. Everything about the held weapon is reached through this.
+@onready var loadout: Loadout = $Loadout
 @onready var sword_trail: SwordTrail = $SwordTrail
 @onready var charge_ring: ChargeRing = $ChargeRing
 @onready var sfx_blade_player: AudioStreamPlayer3D = $SfxBlade
@@ -127,13 +133,29 @@ signal attack_landed(hurt_box: HurtBox3D)
 # naming the machine's class here would close a script dependency cycle.
 @onready var states: Node = $StateMachine
 
+# --- Resolved from the Loadout on every equip. Null is normal. -------------
+## The equipped weapon's damage volume. Null for a shield (blocking is a state, not a
+## swing) and for a bow (the damage rides on the arrow).
+var weapon_hitbox: SwordHitBox = null
+## The mesh that takes the live/charged tints, and the material it wears at rest.
+var hot_mesh: MeshInstance3D = null
+var hot_mesh_rest: Material = null
+## The weapon's own light, hidden until a threshold fires. Every weapon scene carries
+## one under this name, so no weapon needs a special case.
+var charge_glow: OmniLight3D = null
+
 # --- Read by the states. Set by the clips' method tracks. -----------------
-## True while the sword hitbox is armed.
+## True while the weapon hitbox is armed.
 var attack_hitbox_active := false
 ## True once the clip's cancel/combo window has opened.
 var attack_can_cancel := false
 ## True once the clip has run out.
 var attack_finished := false
+## How long the swing currently running actually takes, in seconds — the clip's length
+## divided by the playback rate its AttackStep asked for. The Attack state reads it as
+## its own safety timeout, so a slowed-down heavy swing does not trip a warning that was
+## written for a sword.
+var attack_clip_duration := 0.5
 
 var _state_machine: AnimationNodeStateMachinePlayback
 var _focus: Interactable = null
@@ -182,10 +204,14 @@ func _ready() -> void:
 
 	Toonify.apply($Rig/Character)
 	_hud = get_tree().get_first_node_in_group("hud")
+	if _hud != null and _hud.has_method("bind_loadout"):
+		_hud.bind_loadout(loadout)
 
-	sword_hitbox.amount = slash_damage
-	sword_hitbox.landed.connect(_on_sword_landed)
-	_refresh_blade_look()
+	# Connected AND called by hand, in that order. Child `_ready` runs before the
+	# parent's, so the Loadout has already equipped the starting item and its
+	# `equipped_changed` has already been emitted into nothing by the time we get here.
+	loadout.equipped_changed.connect(_on_equipped_changed)
+	_on_equipped_changed(loadout.equipped)
 
 	states.setup(self)
 
@@ -236,7 +262,7 @@ func _tick_jump_timers(delta: float, on_floor: bool) -> void:
 		_jump_buffer_timer = maxf(_jump_buffer_timer - delta, 0.0)
 
 
-## Attack buffering and the spin charge. Runs every tick regardless of state, so
+## Attack buffering and the charge. Runs every tick regardless of state, so
 ## the charge survives the slash it started with — which is what makes "tap to
 ## slash, hold to spin" one gesture instead of two.
 func _tick_attack_input(delta: float) -> void:
@@ -251,9 +277,20 @@ func _tick_attack_input(delta: float) -> void:
 		if _attack_buffer_timer <= 0.0:
 			_spin_requested = false
 
+	var threshold := _charge_seconds()
+	if threshold <= 0.0:
+		# Nothing equipped that can be charged. A bow's hold is PlayerAimState's draw and
+		# a shield has no attack at all, so the charge timer must not run: it would arm a
+		# spin that fires by itself the moment a sword comes back into your hand.
+		_charge_timer = 0.0
+		if _charged:
+			_charged = false
+			_refresh_blade_look()
+		return
+
 	if Input.is_action_pressed("attack"):
 		_charge_timer += delta
-		if not _charged and _charge_timer >= charge_time:
+		if not _charged and _charge_timer >= threshold:
 			_charged = true
 			# The tell. REFERENCE.md is explicit that the threshold needs to be
 			# both audible and visible, or the charge is a guess.
@@ -267,6 +304,50 @@ func _tick_attack_input(delta: float) -> void:
 		_refresh_blade_look()
 	else:
 		_charge_timer = 0.0
+
+
+## Seconds of hold before the charged attack is available, or 0 when the equipped item
+## has no charged attack at all — which is a legitimate answer for some weapons, and the
+## answer for both the bow and the shield.
+func _charge_seconds() -> float:
+	var melee := loadout.equipped as MeleeWeapon
+	if melee == null or melee.charged == null:
+		return 0.0
+	return melee.ms_charge / 1000.0 if melee.ms_charge > 0 else charge_time
+
+
+# --- Equipping ------------------------------------------------------------
+
+## Rebind everything that belongs to the held weapon: its hitbox, the markers the ribbon
+## samples between, its light, and the mesh that carries the live and charged tints.
+##
+## Called on every swap including the first, and every lookup is allowed to come back
+## null. That is not defensive habit — a shield genuinely has no hitbox, a bow has no
+## trail markers, and an empty hand has none of it. The nodes of the PREVIOUS weapon are
+## already freed by the time this runs, so nothing is disconnected here: the connections
+## went with them.
+func _on_equipped_changed(item: ItemData) -> void:
+	weapon_hitbox = loadout.find_in_weapon("SwordHitBox") as SwordHitBox
+	if weapon_hitbox != null:
+		weapon_hitbox.landed.connect(_on_sword_landed)
+	charge_glow = loadout.part(&"ChargeGlow") as OmniLight3D
+
+	sword_trail.blade_base = loadout.part(&"BladeBase") as Node3D
+	sword_trail.blade_tip = loadout.part(&"BladeTip") as Node3D
+
+	var melee := item as MeleeWeapon
+	hot_mesh = loadout.part(melee.hot_mesh) as MeshInstance3D if melee != null else null
+	hot_mesh_rest = hot_mesh.material_override if hot_mesh != null else null
+	if melee != null:
+		# The ribbon's hue and length are the weapon's, not the trail's. Both stay inside
+		# the one hue this world leaves free: orange means a blade is live, whatever the
+		# blade is.
+		sword_trail.tint_mid = melee.trail_tint
+		sword_trail.history_ticks = maxf(
+			1.0, melee.ms_trail * Engine.physics_ticks_per_second / 1000.0)
+
+	_blade_hot = false
+	_refresh_blade_look()
 
 
 # --- Verbs the locomotion states call, in this order ---------------------
@@ -300,12 +381,16 @@ func apply_jump_cut() -> void:
 		velocity.y *= 0.45
 
 
-func apply_movement(delta: float, on_floor: bool) -> void:
+## `scale` caps the top speed without touching acceleration or friction, which is what a
+## guard or a draw wants: you can still reposition at the same responsiveness, you just
+## cannot get anywhere. Defaulted, so the locomotion states' call is unchanged and the
+## movement baseline cannot move.
+func apply_movement(delta: float, on_floor: bool, scale: float = 1.0) -> void:
 	var direction := camera_relative_input()
 
 	var control := 1.0 if on_floor else air_control
 	var horizontal := Vector3(velocity.x, 0.0, velocity.z)
-	var target := direction * max_speed
+	var target := direction * max_speed * scale
 
 	var rate := (acceleration if direction != Vector3.ZERO else friction) * control
 	horizontal = horizontal.move_toward(target, rate * delta)
@@ -387,16 +472,29 @@ func apply_attack_drive(delta: float, on_floor: bool) -> void:
 	velocity.z = horizontal.z
 
 
-## Start one swing: clear the previous swing's windows, arm the right damage, and
-## play the clip from its first frame.
-func begin_attack(clip: StringName, spin: bool) -> void:
+## Start one swing: clear the previous swing's windows, arm the step's damage, and play
+## its clip from the first frame at whatever rate makes the step's timing true.
+##
+## The rate is the whole of how a heavy weapon works. Windows are method-track keyframes
+## and method tracks fire on clip time, so playing `slash_a` at 0.625x moves the wind-up,
+## the live window and the commitment out together in proportion — see
+## items/attack_step.gd. Nothing here knows which weapon it is; it knows a step.
+func begin_attack(step: AttackStep, heavy: bool) -> void:
 	_attack_started += 1
-	_attack_clip = clip
+	_attack_clip = step.clip
 	attack_can_cancel = false
 	attack_finished = false
 	attack_hitbox_active = false
-	sword_hitbox.end_swing()
-	sword_hitbox.amount = spin_damage if spin else slash_damage
+	var scale := 1.0
+	var anim := anim_player.get_animation(step.clip)
+	if anim != null:
+		scale = step.clip_scale(AttackStep.authored_windup_frames(anim))
+		attack_clip_duration = anim.length / maxf(scale, 0.01)
+	if weapon_hitbox != null:
+		weapon_hitbox.end_swing()
+		# The STEP's actions, not the weapon's, which is what lets a chain's finisher hit
+		# harder than its opener with no code to say so.
+		weapon_hitbox.actions = step.actions
 	# The ribbon and the hot blade open HERE, on the frame the swing is committed,
 	# and not on the clip's `_anim_trail_on` key three frames later. A critic could
 	# only find the wind-up frame by comparing it against its paired idle — "a
@@ -409,8 +507,8 @@ func begin_attack(clip: StringName, spin: bool) -> void:
 	sword_trail.start()
 	_blade_hot = true
 	_refresh_blade_look()
-	play_anim(clip, 1.0, true)
-	_play_blade(sfx_swing_heavy if spin else sfx_swing, -5.0)
+	play_anim(step.clip, scale, true)
+	_play_blade(sfx_swing_heavy if heavy else sfx_swing, -5.0)
 
 
 func end_attack() -> void:
@@ -418,7 +516,8 @@ func end_attack() -> void:
 	attack_can_cancel = false
 	attack_finished = false
 	_blade_hot = false
-	sword_hitbox.end_swing()
+	if weapon_hitbox != null:
+		weapon_hitbox.end_swing()
 	# Stopped, not cleared: leaving the attack state lets the arc fade out on its
 	# own, exactly as finishing a swing does. Yanking the ribbon here would make
 	# every cancel look like a rendering glitch.
@@ -453,13 +552,15 @@ func get_clip_length(clip: StringName) -> float:
 
 func _anim_hitbox_on() -> void:
 	attack_hitbox_active = true
-	sword_hitbox.begin_swing()
+	if weapon_hitbox != null:
+		weapon_hitbox.begin_swing()
 	_refresh_blade_look()
 
 
 func _anim_hitbox_off() -> void:
 	attack_hitbox_active = false
-	sword_hitbox.end_swing()
+	if weapon_hitbox != null:
+		weapon_hitbox.end_swing()
 	_refresh_blade_look()
 
 
@@ -562,14 +663,15 @@ func update_locomotion_anim(on_floor: bool) -> void:
 # --- Blade look and sound -------------------------------------------------
 
 func _refresh_blade_look() -> void:
-	if blade == null:
-		return
-	if _charged:
-		blade.material_override = blade_charged_material
-	elif _blade_hot or attack_hitbox_active:
-		blade.material_override = blade_live_material
-	else:
-		blade.material_override = blade_material
+	# `hot_mesh` is whichever mesh the equipped weapon nominates — the sword's blade, the
+	# axe's head edge — and it is null for a shield, which has no hot part at all.
+	if hot_mesh != null:
+		if _charged:
+			hot_mesh.material_override = blade_charged_material
+		elif _blade_hot or attack_hitbox_active:
+			hot_mesh.material_override = blade_live_material
+		else:
+			hot_mesh.material_override = hot_mesh_rest
 	if charge_glow != null:
 		charge_glow.visible = _charged
 	# The ring is the half of the charge tell that has EDGES. The light wash and the
@@ -612,6 +714,12 @@ func _process(_delta: float) -> void:
 	_update_focus()
 	if _focus != null and Input.is_action_just_pressed("interact"):
 		_focus.interact(self)
+	# F4 cycles the loadout, and it is not just a convenience. tools/capture.tscn can only
+	# reach the game through InputMap actions, so without an input that changes what is in
+	# your hand there is no way to photograph the axe, the bow or the shield at the
+	# gameplay camera — and Rule 3 says a look is judged by looking at it.
+	if Input.is_action_just_pressed("cycle_item"):
+		loadout.cycle()
 
 
 ## Pick what the player would interact with: nearest thing they're facing.
@@ -676,7 +784,7 @@ func get_state_name() -> String:
 
 
 func is_attack_hitbox_active() -> bool:
-	return sword_hitbox.monitoring
+	return weapon_hitbox != null and weapon_hitbox.monitoring
 
 
 ## Increments the moment a swing is accepted and its clip starts. The probe reads
@@ -688,7 +796,7 @@ func get_attack_start_count() -> int:
 ## Increments once per armed hitbox window — the per-swing instance counter the
 ## multi-hit guard keys off.
 func get_attack_swing_id() -> int:
-	return sword_hitbox.get_swing_id()
+	return weapon_hitbox.get_swing_id() if weapon_hitbox != null else 0
 
 
 func is_attack_charged() -> bool:

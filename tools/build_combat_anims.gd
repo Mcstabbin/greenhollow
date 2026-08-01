@@ -90,6 +90,9 @@ func _initialize() -> void:
 	lib.add_animation(&"slash_a", _build_slash_a())
 	lib.add_animation(&"slash_b", _build_slash_b())
 	lib.add_animation(&"spin_attack", _build_spin())
+	lib.add_animation(&"block", _build_block())
+	lib.add_animation(&"bow_draw", _build_bow_draw())
+	lib.add_animation(&"bow_shoot", _build_bow_shoot())
 
 	var err := ResourceSaver.save(lib, LIB_PATH)
 	if err != OK:
@@ -260,6 +263,45 @@ const TRAIL_LAG := 7.0 * F
 ## 42 frames of slow breath, because a genuinely frozen pose reads as the game
 ## having hung.
 const CHARGE_LEN := 42.0 * F
+
+## The two other HELD poses, same length and same reason: a shield stays up and a
+## bow stays drawn for as long as the button is down, so every frame of the loop has
+## to be an unmistakable read on its own.
+const BLOCK_LEN := 42.0 * F
+const DRAW_LEN := 42.0 * F
+## The release. No method tracks: the arrow leaves on the frame the button comes up,
+## which is an input event, not an animation event, and PlayerAimState times the
+## recovery off get_clip_length. Nothing about the shot is keyed here.
+const SHOOT_LEN := 18.0 * F
+
+## GRIP AND ARM ANGLES FOR THE OFF-WEAPONS, and these are MEASURED, not chosen. A
+## throwaway harness posed the rig directly and printed, for each candidate, the weapon's
+## screen span, how far its centre sits from the body's, its depth relative to the torso and
+## the direction of its own axes. Nine candidates each. The measurement mattered more here
+## than anywhere else in the file, because two plausible-looking guesses were both wrong in
+## ways a screenshot showed but arithmetic did not:
+##
+##  * The first shield pose swept the arm 18 degrees FORWARD, on the reasoning that a guard
+##    faces the blow. Measured: it put the slab 0.67 m further from the camera than the
+##    torso and inside its silhouette — i.e. entirely hidden behind the character. Sweeping
+##    the arm forward on a rig whose camera sits behind it hides the weapon. Purely lateral
+##    (yaw 0) puts it 0.10-0.25 m IN FRONT of the torso and ~90 px clear of it.
+##  * The first bow pose solved for a grip yaw so the bow's plane would face forward, and
+##    measured 51 x 69 px of screen span — a 1.7 m bow reading at the size of a stick,
+##    because 40% of its length pointed at the lens. Cancelling the ARM's roll with the
+##    grip instead (grip.z = -arm.z) stands the weapon upright with its face square to the
+##    view: 38 x 103 px, and the whole of it outside the body.
+##
+## The rule that came out of it, and the one to keep: `grip.z = -arm_r.z` leaves the
+## weapon's long axis vertical whatever the arm is doing, and `arm_r.y = 0` keeps it out of
+## the depth axis. Both poses also leave the ROOT unrotated, because the root turns the
+## shoulder frame and every number above was measured with it square.
+const GRIP_BLOCK := Vector3(0.0, 0.0, 75.0)
+const GRIP_BOW := Vector3(0.0, 0.0, 70.0)
+## The arm angles that go with them, kept beside the grips because the pair is what was
+## measured — changing one without the other puts the weapon back inside the body.
+const ARM_BLOCK := Vector3(0.0, 0.0, -75.0)
+const ARM_BOW := Vector3(0.0, 0.0, -70.0)
 
 
 ## The charged-and-waiting POSE.
@@ -532,6 +574,130 @@ func _build_spin() -> Animation:
 	]
 	return _assemble("spin_attack", SPIN_LEN, keys,
 		SPIN_HIT_ON, SPIN_HIT_OFF, SPIN_CANCEL)
+
+
+## Shield up. A HELD pose, like `charge`, and it carries the same burden: with one
+## equip slot, "am I holding the shield" and "is the shield up" are both questions the
+## player answers from the frame, because there is no HUD saying so.
+##
+## The shield goes ABOVE AND OUTSIDE THE RIGHT SHOULDER, not in front of the chest,
+## and that is the whole design of the pose. A 0.68 x 0.88 m slab held in front of a
+## 1.34 m-wide torso, seen from a camera directly behind that torso, is a slab the
+## camera is looking through the character to see — the exact trap CLAUDE.md records
+## the first slash arc falling into. Raised, it breaks the silhouette in the only
+## direction the camera has a clear line on.
+##
+## The body then does what a guard does: drops its weight, turns its lead shoulder
+## into the blow and rolls away from it. Roll is on the torso rather than the root for
+## the reason recorded above — rolling the root drives a foot through the ground.
+func _build_block() -> Animation:
+	var guard := {
+		"grip": GRIP_BLOCK, "root_y": -0.052, "arm_r": ARM_BLOCK,
+		# The lean lives in the TORSO, not the root: the root carries the legs, and the
+		# measurements above were all taken with it square.
+		"torso": Vector3(8, -10, 18),
+		# The off arm tucks low and back, so the pose is asymmetric from any angle.
+		# "Symmetry kills motion", and a guard that stands square reads as a T-pose
+		# holding a board.
+		"arm_l": Vector3(0, -26, -18), "ant": Vector3(0, 14, 12),
+		"leg_l": Vector3(-14, 0, 0), "leg_r": Vector3(16, 0, 0),
+	}
+	# Breathing behind the shield. Deliberately smaller than the charge's breath, and only
+	# in channels that do not move the shield: a guard is a settled position, and a bobbing
+	# one would read as a stagger.
+	var settle := guard.duplicate()
+	settle["root_y"] = -0.062
+	settle["arm_l"] = Vector3(0, -30, -14)
+	settle["ant"] = Vector3(0, 18, 14)
+	var keys: Array = [
+		[0.0 * F, guard],
+		[21.0 * F, settle],
+		[BLOCK_LEN, guard],
+	]
+	return _pose_clip("block", BLOCK_LEN, keys, true)
+
+
+## The bow at draw. THE HIGHEST-RISK FRAME IN THE PROJECT for readability, and it is
+## worth saying why in full.
+##
+## A blind critic given the charged sword frame beside its idle called it the weakest
+## in a twelve-frame set: "only the blade's colour changed — if the glow had been
+## absent I would have called it IDLE with confidence 5 and been wrong." A bow draw is
+## structurally the same thing: a held pose, no travel, nothing moving. So it gets no
+## tint as its primary cue. It gets three things that survive a still frame:
+##
+##  1. A POSE THAT CANNOT BE IDLE. Both arms leave the body's outline in OPPOSITE
+##     directions — the bow arm punched straight out in front, the draw hand hauled
+##     back past the shoulder — with the chest turned side-on and the weight sunk onto
+##     a wide stance. Idle on this rig is an upright box with both stubs down.
+##  2. THE BOW ITSELF, TURNED FACE-ON. See GRIP_BOW: a bow held edge-on to the camera
+##     is a vertical hairline, and this is the difference between a 0.9 m arc across
+##     the frame and nothing.
+##  3. AN OUTLINED, OPAQUE ARROW nocked on the string, which PlayerAimState creates and
+##     retracts as the draw builds. A hard-edged prop pointing out of the silhouette,
+##     not a colour.
+##
+## The full-draw threshold reuses the charge ring, which is already the project's
+## hard-edged "wound up and waiting" mark. Same vocabulary, one thing to learn.
+func _build_bow_draw() -> Animation:
+	var drawn := {
+		"grip": GRIP_BOW, "root_y": -0.046,
+		# Leaning into the shot, turned, and ROLLED 22 degrees. The roll is doing two jobs
+		# at once and both were measured: it is the cheapest silhouette channel this rig
+		# has, and it also tilts the bow off vertical, which took its screen footprint from
+		# 38 x 103 px to 53 x 108 — a diagonal arc reads as a bow where a vertical line
+		# reads as a stick.
+		"torso": Vector3(10, -10, 22),
+		# Bow arm out to the side, NOT forward. See the note on GRIP_BOW: forward is the
+		# one direction this camera cannot see, and lateral is what measured 103 px of
+		# upright bow clear of the body.
+		"arm_r": ARM_BOW,
+		# Draw hand hauled up and back on the other side, so the two arms leave the
+		# silhouette in opposite directions and no frame of this could be idle.
+		"arm_l": Vector3(0, 34, -62), "ant": Vector3(0, -20, 8),
+		"leg_l": Vector3(-22, 0, 0), "leg_r": Vector3(20, 0, 0),
+	}
+	# A drawn bow creeps: the string hand shakes a fraction and the stance sinks. Small, so
+	# no frame of the loop is a weaker read than another, and confined to channels that do
+	# not move the bow.
+	var creep := drawn.duplicate()
+	creep["root_y"] = -0.056
+	creep["arm_l"] = Vector3(0, 38, -66)
+	creep["ant"] = Vector3(0, -24, 10)
+	var keys: Array = [
+		[0.0 * F, drawn],
+		[21.0 * F, creep],
+		[DRAW_LEN, drawn],
+	]
+	return _pose_clip("bow_draw", DRAW_LEN, keys, true)
+
+
+## The release. The string hand snaps open and flies back past the ear, the bow arm
+## takes the recoil, and the stance unwinds — so the follow-through is asymmetric in
+## the opposite direction to the draw, and the two frames can never be confused.
+func _build_bow_shoot() -> Animation:
+	var keys: Array = [
+		# Frame 0 is still the drawn pose, for the reason every attack clip here starts at
+		# its extreme: the frame the state machine first reports is largely the pose it is
+		# blending out of, so the change has to be waiting there already.
+		[0.0 * F, {"grip": GRIP_BOW, "root_y": -0.046, "torso": Vector3(10, -10, 22),
+			"arm_r": ARM_BOW, "arm_l": Vector3(0, 34, -62), "ant": Vector3(0, -20, 8),
+			"leg_l": Vector3(-22, 0, 0), "leg_r": Vector3(20, 0, 0)}],
+		# Loose. The draw hand is thrown open and back and the bow arm takes the recoil.
+		[2.0 * F, {"grip": Vector3(0, 0, 58), "root_y": -0.030, "torso": Vector3(4, -4, 12),
+			"arm_r": Vector3(0, 0, -54), "arm_l": Vector3(0, 10, -74),
+			"ant": Vector3(0, -30, 4),
+			"leg_l": Vector3(-16, 0, 0), "leg_r": Vector3(14, 0, 0)}],
+		[6.0 * F, {"grip": Vector3(0, 4, 48), "root_y": -0.018, "torso": Vector3(-2, -2, 4),
+			"arm_r": Vector3(0, 0, -42), "arm_l": Vector3(0, 2, -52),
+			"ant": Vector3(0, -14, 2),
+			"leg_l": Vector3(-8, 0, 0), "leg_r": Vector3(6, 0, 0)}],
+		[12.0 * F, {"grip": Vector3(0, 12, 32), "root_y": -0.006,
+			"arm_r": Vector3(0, 0, -22), "arm_l": Vector3(0, 0, -20),
+			"leg_l": Vector3(-4, 0, 0)}],
+		[SHOOT_LEN, {"arm_r": Vector3(0, 0, 25)}],
+	]
+	return _pose_clip("bow_shoot", SHOOT_LEN, keys, false)
 
 
 ## Turn a pose list into the same ten transform tracks the glb clips use — same

@@ -19,6 +19,13 @@ extends ItemData
 ## in the set, so a new weapon must not repeat that.
 @export var ms_charge: int = 1067
 
+@export_group("Look")
+## Which mesh inside the weapon scene takes the "live" and "charged" tints. The sword's
+## is its blade; the axe's is the edge of its head, which is where a viewer looks. Data
+## rather than a hardcoded "Blade" lookup, because the player must not know the node
+## names of the thing it is holding.
+@export var hot_mesh: StringName = &"Blade"
+
 @export_group("Hitbox")
 ## Sized in world units and applied to the weapon scene's own hitbox, so a long
 ## axe head does not need a hand-matched capsule in four places.

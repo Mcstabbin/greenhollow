@@ -1,7 +1,12 @@
 class_name PlayerAttackState
 extends PlayerState
-## Committed sword attacks: a two-hit alternating slash combo, and the charged
-## spin.
+## Committed melee attacks: the equipped weapon's chain, and its charged attack.
+##
+## The chain is DATA. `MeleeWeapon.steps` is an `Array[AttackStep]` and this state walks
+## it, so the sword's two alternating slashes and the axe's slower, harder two are the
+## same code path with different numbers — which is the engine's own demo pattern, see
+## PRIOR-ART.md. A weapon with three steps, or one, or a different clip per step, needs
+## no edit here.
 ##
 ## This state deliberately knows almost nothing about timing. Wind-up, the live
 ## hitbox window, the cancel/combo window and the end of the swing are all Call
@@ -19,7 +24,7 @@ extends PlayerState
 @export var move_state: PlayerState
 @export var air_state: PlayerState
 
-var _clip: StringName = &"slash_a"
+var _step: AttackStep = null
 var _combo: int = 0
 var _elapsed: float = 0.0
 var _timeout: float = 1.0
@@ -65,7 +70,8 @@ func physics_update(delta: float, on_floor: bool) -> PlayerState:
 		# _timeout is a guard, not the mechanism: if a blend ever swallowed the
 		# final method key we recover instead of locking the player out.
 		if not player.attack_finished:
-			push_warning("attack '%s' timed out without _anim_attack_finished" % _clip)
+			push_warning("attack '%s' timed out without _anim_attack_finished"
+				% (_step.clip if _step != null else &"?"))
 		done = true
 
 	# The move happens whether or not we are leaving: PlayerState's contract is one
@@ -79,20 +85,33 @@ func physics_update(delta: float, on_floor: bool) -> PlayerState:
 	return _resolve_exit(on_floor) if done else null
 
 
-func _start_swing(spin: bool) -> void:
+## Pick the next step out of the equipped weapon and swing it. `charged` means the player
+## released a held charge, so the weapon's charged step jumps the queue and the chain
+## restarts behind it.
+func _start_swing(charged: bool) -> void:
 	_queued = false
 	_queued_spin = false
-	if spin:
-		_clip = &"spin_attack"
+	var weapon := player.loadout.equipped as MeleeWeapon
+	if weapon == null or weapon.steps.is_empty():
+		# Nothing swingable in hand. Reachable only if an item is swapped mid-swing, and
+		# the honest answer is to end the state rather than to invent a swing.
+		_step = null
+		player.attack_finished = true
+		return
+	if charged and weapon.charged != null:
+		_step = weapon.charged
 		_combo = 0
 	else:
-		_clip = &"slash_a" if _combo % 2 == 0 else &"slash_b"
+		_step = weapon.steps[_combo % weapon.steps.size()]
 		_combo += 1
 	_elapsed = 0.0
-	_timeout = player.get_clip_length(_clip) + 0.25
+	# The clip's own length divided by the rate this step plays it at, which Player worked
+	# out in begin_attack. A guard, not the mechanism — but a guard sized for a sword would
+	# fire in the middle of every heavy swing.
 	# begin_attack must run before the clip does, so the previous swing's flags
 	# cannot survive into this one and end it on frame two.
-	player.begin_attack(_clip, spin)
+	player.begin_attack(_step, charged)
+	_timeout = player.attack_clip_duration + 0.25
 
 
 func _resolve_exit(on_floor: bool) -> PlayerState:

@@ -33,6 +33,11 @@ signal item_found(item: ItemData)
 ## What the player starts holding, if anything.
 @export var starting_item: ItemData
 
+## Every item, in canonical order, for the debug cycle key. Chests state their own
+## contents instead of reading this: falling back to the catalogue would have quietly
+## turned the chest holding the forest gate's key into a weapon chest.
+@export var catalogue: Array[ItemData] = []
+
 var equipped: ItemData = null
 var ammo: int = -1
 
@@ -47,12 +52,31 @@ var _instance: Node = null
 
 func _ready() -> void:
 	if starting_item != null:
+		# Recorded as found, but WITHOUT the item_found banner: you are already holding
+		# it, so there is nothing to announce. Skipping this was a real bug rather than
+		# a nicety — a chest asking for "the first thing not yet found" would have
+		# handed back the sword the player is holding, forever.
+		if not _found.has(starting_item.id):
+			_found.append(starting_item.id)
 		equip(starting_item)
 
 
 ## True once this item has ever been picked up, equipped or not.
 func has_found(id: StringName) -> bool:
 	return _found.has(id)
+
+
+## The first entry of `from` that has never been picked up. Null when there is nothing
+## left, which is how a chest knows to fall back to rupees.
+##
+## Takes the list rather than reading `catalogue`, deliberately: a chest that fell back to
+## the catalogue when its own list was empty would silently turn EVERY chest in the level
+## into a weapon chest, including the one holding the key the forest gate needs.
+func next_unfound(from: Array[ItemData]) -> ItemData:
+	for item in from:
+		if item != null and not has_found(item.id):
+			return item
+	return null
 
 
 ## Record an item as found and equip it. Returns false if it was already found, so
@@ -85,9 +109,30 @@ func equip(item: ItemData) -> void:
 		else:
 			_instance = item.scene.instantiate()
 			grip.add_child(_instance)
+			_apply_shape(item)
 
 	_set_ammo_for(item)
 	equipped_changed.emit(equipped)
+
+
+## Equip the next thing in `catalogue`, wrapping. Granted rather than merely equipped,
+## so cycling past an item also marks it found and a chest stops offering it.
+##
+## This exists for a concrete reason and not as a convenience: tools/capture.tscn can
+## only reach the game through InputMap actions, so without an input that changes the
+## loadout there is NO WAY to photograph the axe, the bow or the shield. Bound to F4.
+func cycle() -> void:
+	if catalogue.is_empty():
+		return
+	var at := catalogue.find(equipped)
+	var item := catalogue[(at + 1) % catalogue.size()]
+	# Recorded as found but deliberately NOT announced. A debug key handing you a weapon is
+	# not an item-get moment, and going through `grant` raised the found banner in the
+	# middle of every capture frame taken through this key — a 30-point label across the
+	# bottom of a frame whose whole purpose is judging a silhouette.
+	if not _found.has(item.id):
+		_found.append(item.id)
+	equip(item)
 
 
 ## The instantiated weapon scene, so the player can find its hitbox or markers
@@ -107,6 +152,41 @@ func find_in_weapon(type_name: String) -> Node:
 		return _instance
 	var found := _instance.find_children("*", type_name, true, false)
 	return found[0] if not found.is_empty() else null
+
+
+## A named node inside the equipped weapon — its trail markers, its arrow spawn, its
+## charge glow. Null when this weapon has none, which is normal and not an error: a
+## shield has no BladeTip and a sword has no ArrowSpawn.
+func part(part_name: StringName) -> Node:
+	if _instance == null:
+		return null
+	return _instance.get_node_or_null(NodePath(String(part_name)))
+
+
+## Make the instanced scene match its data. Only shapes and sizes: anything about how
+## the weapon BEHAVES belongs to whoever swings it.
+##
+## The hitbox capsule is here because the alternative is keeping a weapon's reach in two
+## places — the generator that builds the mesh and the resource that tunes the fight —
+## and they had already diverged by 4 cm, which is more than the margin by which the
+## combo's second swing reaches a target in front of the player.
+func _apply_shape(item: ItemData) -> void:
+	var melee := item as MeleeWeapon
+	if melee == null:
+		return
+	var shape := find_in_weapon("CollisionShape3D") as CollisionShape3D
+	if shape == null:
+		return
+	var capsule := shape.shape as CapsuleShape3D
+	if capsule == null:
+		return
+	# duplicate(), because a CapsuleShape3D loaded from the weapon scene is shared with
+	# every other instance of that scene and resizing it in place would reach across
+	# them — the same trap as editing a shared Material.
+	capsule = capsule.duplicate() as CapsuleShape3D
+	capsule.radius = melee.hitbox_radius
+	capsule.height = maxf(melee.hitbox_height, melee.hitbox_radius * 2.0 + 0.01)
+	shape.shape = capsule
 
 
 ## Spend one arrow. False when empty, so the caller does not play a fire animation

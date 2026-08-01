@@ -17,6 +17,13 @@ extends Resource
 ## code path. If the axe ever needs its own branch in the player, this model is
 ## wrong and should be fixed rather than special-cased.
 
+## Measured, not chosen: there is a fixed three-frame pipeline between the button
+## going down and a method track being observable — one frame for `just_pressed`, two
+## more for the AnimationTree, which processes after the Player inside the same physics
+## tick. CLAUDE.md records it, twice measured, on two different keys. A key authored at
+## frame K is therefore observed at K + 3.
+const INPUT_LATENCY_FRAMES := 3
+
 ## Clip to travel to in the AnimationTree's state machine.
 @export var clip: StringName = &"slash_a"
 
@@ -47,6 +54,47 @@ extends Resource
 ## highest-value number in combat feel. Never via Engine.time_scale — that is
 ## ignored by AudioStreamPlayer; scale the participating AnimationTrees.
 @export var ms_hitstop: int = 80
+
+
+## Playback rate for `clip` that makes `ms_windup` come true, and the single reason a
+## heavier weapon needs no code.
+##
+## There are three hand-authored attack clips in the project and their windows are
+## method-track keyframes, so a weapon cannot have its own keyframe times without a
+## second set of clips. What it CAN have is the same clip played slower: method tracks
+## fire on CLIP time, so at 0.625x the wind-up, the live window and the commitment all
+## move out together, in proportion. That is what "heavier" means — the axe is a
+## playback rate and a damage number, not a branch.
+##
+## `authored` is where the clip's own `_anim_hitbox_on` key sits, in frames, read off
+## the Animation by the caller so no frame number is duplicated here.
+##
+## Arithmetic in whole FRAMES on purpose. Milliseconds would put the sword at 1.004
+## rather than 1.0 (133 ms is 7.98 frames, not 8), and a clip running four parts in a
+## thousand off its authored rate can sit a fraction of a microsecond behind its own
+## keyframe on the tick that key is due — which opens the window a WHOLE FRAME late and
+## moves every measured number in the combat suite. Integers cannot do that.
+func clip_scale(authored: int, hz: int = 60) -> float:
+	var want := windup_frames(hz) - INPUT_LATENCY_FRAMES
+	if want <= 0 or authored <= 0:
+		return 1.0
+	return float(authored) / float(want)
+
+
+## Where a clip arms its hitbox, in frames of its own time. Read from the resource
+## rather than restated here, so retiming a clip in tools/build_combat_anims.gd cannot
+## silently disagree with the weapons that play it.
+static func authored_windup_frames(anim: Animation, hz: int = 60) -> int:
+	if anim == null:
+		return 0
+	for track in anim.get_track_count():
+		if anim.track_get_type(track) != Animation.TYPE_METHOD:
+			continue
+		for key in anim.track_get_key_count(track):
+			var value: Dictionary = anim.track_get_key_value(track, key)
+			if String(value.get("method", "")) == "_anim_hitbox_on":
+				return roundi(anim.track_get_key_time(track, key) * hz)
+	return 0
 
 
 ## Convenience for the probe and for the generator, which both think in frames.

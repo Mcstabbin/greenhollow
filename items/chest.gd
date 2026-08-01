@@ -3,7 +3,20 @@ extends Interactable
 ##
 ## Built procedurally from two boxes so it needs no model: the nature kit has
 ## no chest. Lid swings on a Tween.
+##
+## The item-get moment is GENERIC. There is no branch per item anywhere below: the chest
+## asks the opener's Loadout for the first thing in `contains` that has never been picked
+## up, grants it, and shows the line the ITEM carries (`ItemData.found_text`). Adding a
+## fifth weapon is a `.tres` file and an array entry.
 
+## Items this chest can give, in order. The first one never yet found is what comes out,
+## so a chest holds a PREFERENCE rather than a specific object and never has to remember
+## what it has already handed over — the Loadout knows what has been found.
+##
+## Stated per chest rather than defaulted to the loadout's catalogue on purpose: a
+## fallback would have turned every chest in the level into a weapon chest, including the
+## one holding the key the forest gate needs.
+@export var contains: Array[ItemData] = []
 @export var contains_key: bool = false
 @export var rupees: int = 0
 @export var chest_id: String = ""
@@ -75,7 +88,7 @@ func _ready() -> void:
 		_used = true
 
 
-func _on_interact(_by: Node3D) -> void:
+func _on_interact(by: Node3D) -> void:
 	if _open:
 		return
 	_open = true
@@ -87,9 +100,33 @@ func _on_interact(_by: Node3D) -> void:
 	tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tween.tween_property(_lid, "rotation:x", -1.9, 0.45)
 
+	if _give_item(by):
+		return
 	if contains_key:
 		GameState.add_key()
 		GameState.say("Found a small key!")
 	if rupees > 0:
 		GameState.add_rupees(rupees)
 		GameState.say("Found %d rupees!" % rupees)
+
+
+## Hand over the first item the opener has never found. Returns true if something was
+## given, so a chest that has run out of items falls through to its rupees rather than
+## opening on nothing.
+##
+## The opener is reached through `interact(by)` — the Loadout is a component on the
+## player, not global state, so nothing here goes near an autoload to find it. See the
+## header of components/loadout.gd for why that matters.
+func _give_item(by: Node3D) -> bool:
+	if by == null or contains.is_empty():
+		return false
+	var loadout := by.get_node_or_null("Loadout") as Loadout
+	if loadout == null:
+		return false
+	var item := loadout.next_unfound(contains)
+	if item == null:
+		return false
+	loadout.grant(item)
+	# The item's own line, so the chest needs no idea what came out of it.
+	GameState.say(item.found_text)
+	return true
