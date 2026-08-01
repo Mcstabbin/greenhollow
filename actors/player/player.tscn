@@ -1,4 +1,4 @@
-[gd_scene load_steps=58 format=3]
+[gd_scene load_steps=52 format=3]
 
 [ext_resource type="Script" path="res://actors/player/player.gd" id="1_player"]
 [ext_resource type="PackedScene" path="res://art/models/character.glb" id="2_character"]
@@ -18,7 +18,6 @@
 [ext_resource type="AudioStream" path="res://actors/player/audio/charge_ready.tres" id="16_charge"]
 [ext_resource type="AudioStream" path="res://actors/player/audio/hit.tres" id="17_hit"]
 [ext_resource type="Script" path="res://actors/player/sword_trail.gd" id="18_trail"]
-[ext_resource type="Script" path="res://actors/player/spin_ring.gd" id="19_ring"]
 [ext_resource type="Script" path="res://actors/player/charge_ring.gd" id="20_chargering"]
 [ext_resource type="Shader" path="res://art/shaders/ground_ring.gdshader" id="21_groundring"]
 
@@ -120,51 +119,31 @@ disable_receive_shadows = true
 ; crescent has two points and no flat end.
 ;
 ; Sizes, with sword_trail.gd's outer_reach at 0.60 so the full span is 1.65 blade
-; lengths = 1.39 m: tail 0.07 m, middle 0.81 m, blade end 0.42 m — roughly 4, 38 and
-; 20 px at 640. The widest part of the ribbon is now 45% narrower than the old widest
+; lengths = 1.39 m: tail 0.03 m, belly 0.53 m, blade end 0.33 m — roughly 1, 28 and
+; 18 px at 640. The widest part of the ribbon is now 64% narrower than the old widest
 ; part, and it sits behind the blade rather than on it, which is where a smear belongs.
-; sword_trail.gd then feathers every gap-facing end to a point on top of this, so no
-; piece of the ribbon has a straight edge except the one cross-section that touches the
-; blade.
-[sub_resource type="Curve" id="Curve_trail_width"]
-_data = [Vector2(0, 0.05), 0.0, 0.0, 0, 0, Vector2(0.5, 0.58), 0.0, 0.0, 0, 0, Vector2(1, 0.3), 0.0, 0.0, 0, 0]
-point_count = 3
-
-; `rings` is the subdivision of the MAIN circle and `ring_segments` the tube's
-; cross-section, not the other way round. At rings = 4 this drew a diamond, which
-; is what the first capture showed.
-[sub_resource type="TorusMesh" id="TorusMesh_spin"]
-inner_radius = 0.76
-outer_radius = 1.0
-rings = 48
-ring_segments = 6
-
-; Three bands across the width rather than one flat orange, matching the ribbon's own
-; core/mid/rim ramp so the spin's ground footprint and its arc read as one effect. A
-; single mid-value albedo (the old Color(1, 0.5, 0.08) is 0.58 luminance against
-; 0.47 grass) borrows its contrast from the background; a near-white core between dark
-; rims carries its own.
 ;
-; No longer unbroken, and the previous note here — "the footprint is a claim about reach
-; and a dotted line is a weaker claim" — was answered by a critic asked a sharper
-; question. Shown this frame and asked whether the effect read as motion or as an
-; object, it said: "a tyre lying on the ground ... pale peach interior with a dark brown
-; outer rim. A trail does not have a lit inside face and a shaded rim." A continuous
-; bevelled band IS a solid of revolution, and no amount of colour fixes that. Five
-; arcs, pointed at both ends by the shader's `arc_taper`, and a rim thinned from 44% of
-; the half-width to 22% so it reads as an edge rather than as a shaded face. The claim
-; about reach is made by the arcs' radius, which has not changed.
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_spin_ring"]
-resource_name = "spin_ring"
-shader = ExtResource("21_groundring")
-shader_parameter/core_colour = Color(1, 0.86, 0.62, 1)
-shader_parameter/rim_colour = Color(0.3, 0.1, 0.03, 1)
-shader_parameter/ring_radius = 0.88
-shader_parameter/tube_radius = 0.075
-shader_parameter/core_width = 0.78
-shader_parameter/segments = 5.0
-shader_parameter/segment_fill = 0.78
-shader_parameter/arc_taper = 1.0
+; The belly is 0.38 rather than 0.58 and the tail 0.02 rather than 0.05, and both moves
+; are the same argument. A critic asked to bucket each effect as SWEEP / FRAGMENT /
+; OBJECT called this shape "unmistakably a canoe hull seen from inside", and a deep belly
+; between two points IS a hull section. Measured on the spin frame, the old belly gave a
+; 300 x 63 px shape — 5:1, which is a boat; 0.38 gives about 10:1, which is a ribbon.
+; The aspect ratio is the variable, not the colour: the previous round changed only the
+; colours and got the same verdict. The tail is taken below sword_trail.gd's `min_open`
+; on purpose: the trim then removes the last few cross-sections outright, which is how
+; the taper terminates at a readable six pixels instead of running out into the detached
+; black dashes the same critic found there.
+;
+; The belly also sits at 0.7 rather than 0.5, i.e. nearer the blade, so the profile is a
+; short widening and a long taper rather than a symmetric lens. That is the shape a critic
+; described when one of seven effects finally read as a sweep, and it is worth quoting
+; because it is the target: "a single continuous crescent that widens over the shoulder
+; and tapers to a fine tail, reading as one path." A symmetric lens has no near end and no
+; far end, so it has no path — which is most of what is left of the boat reading once the
+; colour bands stop running lengthwise.
+[sub_resource type="Curve" id="Curve_trail_width"]
+_data = [Vector2(0, 0.02), 0.0, 0.0, 0, 0, Vector2(0.7, 0.38), 0.0, 0.0, 0, 0, Vector2(1, 0.24), 0.0, 0.0, 0, 0]
+point_count = 3
 
 ; The charge tell's ground ring. Authored at radius 1 so the script's scale IS the
 ; radius. Thicker in section than it was (tube 0.16, not 0.11) because it has to hold
@@ -205,10 +184,23 @@ ring_segments = 6
 ; But square-ended arcs are, in a critic's words, "a ring of paving slabs" and "curved
 ; paving slabs / a small stone circle you are standing in" — and that reading is fair:
 ; a constant-width arc with flat ends and a bevelled rim is exactly how this world draws
-; a piece of stonework. `arc_taper` points each arc at both ends, and the rim is thinned
-; from 40% of the half-width to 24% so it reads as a contour rather than as a shaded
-; face. Five arcs rather than seven, so each one is long enough for the taper to be a
-; taper instead of a diamond.
+; a piece of stonework. `arc_taper` points each arc at both ends.
+;
+; Then FOUR arcs became one, because breaking the ring solved "reticle" and created
+; "debris". A critic asked to bucket this frame as SWEEP / FRAGMENT / OBJECT called it a
+; fragment: "four pale crescents at different scales scattered around the feet ... they
+; sit at ground level while the sword is overhead, so they don't connect to the weapon at
+; all." Four co-circular arcs do not read as one ring; they read as four things. A single
+; arc filling 0.86 of the turn (310 degrees) is unmistakably ONE ring, and because it has
+; a start and an end it is still not the closed circle that read as a targeting reticle.
+; The taper makes it thickest opposite its opening, so it also has a direction, which a
+; reticle does not.
+;
+; core_width now measures in from the OUTER edge, so the icy band IS the outer edge with
+; the dark band behind it. The previous 0.94-luminance core between two 0.16 rims was
+; measured and is still the right VALUE structure; what was wrong was its arrangement —
+; bright-with-dark-on-both-sides is a lit interior face, which is the "canoe hull seen
+; from inside" reading in the same critic round.
 ;
 ; Still cyan-family: cyan means "charged" here and orange means "swinging", so the two
 ; states can never be confused with each other.
@@ -219,10 +211,11 @@ shader_parameter/core_colour = Color(0.82, 1, 1, 1)
 shader_parameter/rim_colour = Color(0.02, 0.15, 0.21, 1)
 shader_parameter/ring_radius = 0.84
 shader_parameter/tube_radius = 0.105
-shader_parameter/core_width = 0.76
-shader_parameter/segments = 4.0
-shader_parameter/segment_fill = 0.8
+shader_parameter/core_width = 0.68
+shader_parameter/segments = 1.0
+shader_parameter/segment_fill = 0.86
 shader_parameter/arc_taper = 1.0
+shader_parameter/min_profile = 0.34
 
 [sub_resource type="AnimationNodeAnimation" id="anim_idle"]
 animation = &"idle"
@@ -485,18 +478,6 @@ script = ExtResource("18_trail")
 width_curve = SubResource("Curve_trail_width")
 blade_base = NodePath("../Rig/Character/character/root/torso/arm-right/SwordGrip/BladeBase")
 blade_tip = NodePath("../Rig/Character/character/root/torso/arm-right/SwordGrip/BladeTip")
-
-; The spin's ground read. Authored at radius 1 so the script's scale IS the radius.
-; A child of the Player, not of Rig: the rig's root spins twice inside the clip and
-; a ring does not want to inherit that.
-[node name="SpinRing" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.07, 0)
-visible = false
-cast_shadow = 0
-extra_cull_margin = 8.0
-mesh = SubResource("TorusMesh_spin")
-surface_material_override/0 = SubResource("ShaderMaterial_spin_ring")
-script = ExtResource("19_ring")
 
 ; The charge tell's ground ring. Sits marginally higher than the spin's so the two
 ; can never z-fight if a charge is somehow live across a spin, and a child of the

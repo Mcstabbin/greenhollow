@@ -120,7 +120,6 @@ signal attack_landed(hurt_box: HurtBox3D)
 @onready var blade: MeshInstance3D = sword.get_node("Blade")
 @onready var charge_glow: OmniLight3D = sword.get_node("ChargeGlow")
 @onready var sword_trail: SwordTrail = $SwordTrail
-@onready var spin_ring: SpinRing = $SpinRing
 @onready var charge_ring: ChargeRing = $ChargeRing
 @onready var sfx_blade_player: AudioStreamPlayer3D = $SfxBlade
 @onready var sfx_cue_player: AudioStreamPlayer3D = $SfxCue
@@ -398,7 +397,6 @@ func begin_attack(clip: StringName, spin: bool) -> void:
 	attack_hitbox_active = false
 	sword_hitbox.end_swing()
 	sword_hitbox.amount = spin_damage if spin else slash_damage
-	spin_ring.stop()
 	# The ribbon and the hot blade open HERE, on the frame the swing is committed,
 	# and not on the clip's `_anim_trail_on` key three frames later. A critic could
 	# only find the wind-up frame by comparing it against its paired idle — "a
@@ -485,11 +483,6 @@ func _anim_trail_off() -> void:
 	sword_trail.stop()
 	_blade_hot = false
 	_refresh_blade_look()
-
-
-## Only the spin clip carries this key.
-func _anim_spin_ring() -> void:
-	spin_ring.flash()
 
 
 func _anim_allow_cancel() -> void:

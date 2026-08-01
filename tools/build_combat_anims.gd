@@ -531,7 +531,7 @@ func _build_spin() -> Animation:
 		[42.0 * F, {"root": Vector3(0, -720, 0)}],
 	]
 	return _assemble("spin_attack", SPIN_LEN, keys,
-		SPIN_HIT_ON, SPIN_HIT_OFF, SPIN_CANCEL, true)
+		SPIN_HIT_ON, SPIN_HIT_OFF, SPIN_CANCEL)
 
 
 ## Turn a pose list into the same ten transform tracks the glb clips use — same
@@ -584,7 +584,7 @@ func _pose_clip(name: String, length: float, keys: Array, loop: bool) -> Animati
 
 ## An attack: a pose clip plus the timing windows.
 func _assemble(name: String, length: float, keys: Array,
-		hit_on: float, hit_off: float, cancel: float, spin_ring := false) -> Animation:
+		hit_on: float, hit_off: float, cancel: float) -> Animation:
 	var a := _pose_clip(name, length, keys, false)  # an attack that loops is a bug
 
 	# --- The windows. PRIOR-ART.md: these belong beside the animation. -------
@@ -595,10 +595,18 @@ func _assemble(name: String, length: float, keys: Array,
 	# The ribbon, on its own wider window. See TRAIL_LEAD / TRAIL_LAG.
 	_call(a, m, maxf(hit_on - TRAIL_LEAD, F), "_anim_trail_on")
 	_call(a, m, minf(hit_off + TRAIL_LAG, length - 2.0 * F), "_anim_trail_off")
-	# One frame early, not on hit_on: two keys at the same time on one method track
-	# is an insert-over-an-existing-key, and only one of them survives.
-	if spin_ring:
-		_call(a, m, hit_on - F, "_anim_spin_ring")
+	# The spin used to fire `_anim_spin_ring` one frame before hit_on, lighting an
+	# expanding ground ring. Both are gone. A critic asked to bucket each effect as
+	# SWEEP / FRAGMENT / OBJECT called the ring a fragment in both spin frames — "they
+	# sit at ground level while the sword is overhead, so they don't connect to the
+	# weapon at all", and at the river, "a player would see boats on the river before
+	# they saw an attack." Cutting it from five arcs to one arc aimed at the blade was
+	# tried first and measured: at the gameplay camera the character's own body occludes
+	# most of a 2.45 m ground arc, so what survived was a 39-pixel sliver in one frame
+	# and a detached crescent in the other. A ground mark cannot connect to an overhead
+	# sword from a camera 5.5 m behind at torso height, and the ribbon already sweeps
+	# 170 degrees around the character at shoulder height, which is the better claim
+	# about reach anyway.
 	# One frame inside the clip: a key exactly at `length` is not guaranteed to
 	# fire on a non-looping clip that stops at its own end.
 	#
