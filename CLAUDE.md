@@ -234,6 +234,21 @@ A repo whose last commit is day one is the failure signature.
   already does.
 - `.tscn` and `.tres` files **do** accept `;` comments, which is the only way to
   leave a note on hand-authored scene wiring.
+- **An `AnimationNodeStateMachine` will not *start* a travel while the current state
+  is still fading in.** The request is dropped, not queued. Measured cost: a 0.06 s
+  cross-fade delayed an attack by 3 frames, because releasing a charge on the exact
+  threshold frame releases into the charge pose's own fade-in. 0.02 s is the
+  practical floor. This is why `spin_windup` measures 167 ms rather than 150.
+- Conversely, **shortening a cross-fade costs nothing in measured timing** — all 19
+  combat measurements were identical either side of `trans_attack_in` 0.05 → 0.02,
+  because method tracks fire on *clip* time and blend weight has no say. Fade
+  length affects when a travel is *accepted*, not when its keys fire.
+- **A fading-out clip still advances and still fires its method tracks.** A combo
+  that cross-fades clip A into clip B will run A's end keyframe *inside* B, which
+  silently ended the second swing of ours: the clip played out from the wrong state
+  with no commitment and no cancel window, and every probe number still passed.
+  Pass the owning clip name into method-track calls and ignore keys from clips that
+  are no longer current.
 
 ## Known hazards — read before touching these
 
